@@ -69,7 +69,7 @@ export const Navbar: React.FC = () => {
         </div>
 
         {/* Right side: Clean Balance Display with SDG currency */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-2.5 px-4 py-2 bg-white border border-slate-200/90 rounded-2xl shadow-xs">
             <div className="p-1.5 bg-[#284742]/10 text-[#284742] rounded-xl">
               <Wallet className="w-4 h-4" />

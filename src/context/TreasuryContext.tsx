@@ -29,6 +29,7 @@ import {
   testAppsScriptConnection,
   getOfflineQueue,
   processOfflineQueue,
+  pushAllClientBalancesToSheet,
 } from '../services/appsScriptService';
 
 interface TreasuryContextType {
@@ -91,12 +92,13 @@ interface TreasuryContextType {
   }) => Promise<{ success: boolean; message: string }>;
   deleteTransaction: (id: string) => void;
   updateSheetConfig: (config: Partial<SheetConfig>) => void;
-  syncWithGoogleSheet: () => Promise<void>;
-  getNextRefNo: (type: 'Inflow' | 'Outflow') => string;
+  syncWithGoogleSheet: () => Promise<ClientItem[] | void>;
+  getNextRefNo: (type?: 'Inflow' | 'Outflow' | 'C' | 'D' | 'Credit' | 'Debit') => string;
   getNextInvoiceNo: () => string;
-  getNextClientCode: () => string;
+  getNextClientCode: (clientList?: ClientItem[]) => string;
   isSettingsOpen: boolean;
   setIsSettingsOpen: (open: boolean) => void;
+  pushAllClientBalances: () => Promise<{ success: boolean; message: string }>;
 }
 
 const TreasuryContext = createContext<TreasuryContextType | undefined>(undefined);
@@ -111,6 +113,81 @@ export function getExactTimestamp(): string {
   const minutes = pad(d.getMinutes());
   const seconds = pad(d.getSeconds());
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+function normalizeArabicText(text: string): string {
+  return String(text || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/\s+/g, ' ');
+}
+
+function canonicalClientCode(code: string): string {
+  const upper = String(code || '').trim().toUpperCase();
+  const match = upper.match(/^C0*(\d+)$/);
+  return match ? `C${parseInt(match[1], 10)}` : upper;
+}
+
+function deriveClientBalances(
+  clientList: ClientItem[],
+  orderList: OrderEntry[],
+  txList: Transaction[]
+): ClientItem[] {
+  if (orderList.length === 0 && txList.length === 0) {
+    return clientList;
+  }
+
+  const ordersByCode = new Map<string, number>();
+  const ordersByName = new Map<string, number>();
+  for (const ord of orderList) {
+    const amt = Number(ord.amount) || 0;
+    const cKey = canonicalClientCode(ord.clientCode || '');
+    const nKey = normalizeArabicText(ord.clientName || '');
+    if (cKey) ordersByCode.set(cKey, (ordersByCode.get(cKey) || 0) + amt);
+    if (nKey) ordersByName.set(nKey, (ordersByName.get(nKey) || 0) + amt);
+  }
+
+  const cashflowByCode = new Map<string, number>();
+  const cashflowByName = new Map<string, number>();
+  for (const tx of txList) {
+    const amt = Number(tx.amount) || 0;
+    const cKey = canonicalClientCode(tx.clientCode || '');
+    const nKey = normalizeArabicText(tx.clientName || '');
+    if (cKey) cashflowByCode.set(cKey, (cashflowByCode.get(cKey) || 0) + amt);
+    if (nKey) cashflowByName.set(nKey, (cashflowByName.get(nKey) || 0) + amt);
+  }
+
+  return clientList.map(c => {
+    const cKey = canonicalClientCode(c.code);
+    const nKey = normalizeArabicText(c.name);
+    if (cKey === 'C1') {
+      return { ...c, remaining: 0 };
+    }
+
+    const hasOrdersByCode = cKey ? ordersByCode.has(cKey) : false;
+    const hasOrdersByName = !hasOrdersByCode && nKey ? ordersByName.has(nKey) : false;
+
+    if (hasOrdersByCode || hasOrdersByName) {
+      const totalOrders = hasOrdersByCode
+        ? (ordersByCode.get(cKey) || 0)
+        : (ordersByName.get(nKey) || 0);
+      const totalPaid = cKey && cashflowByCode.has(cKey)
+        ? (cashflowByCode.get(cKey) || 0)
+        : (nKey ? (cashflowByName.get(nKey) || 0) : 0);
+      return {
+        ...c,
+        remaining: Math.max(0, totalOrders - totalPaid),
+      };
+    }
+
+    return {
+      ...c,
+      remaining: typeof c.remaining === 'number' && !isNaN(c.remaining) ? c.remaining : 0,
+    };
+  });
 }
 
 export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -189,14 +266,10 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed.map(c => {
             const init = initialMap.get(c.code.toUpperCase());
-            // Ensure C04 الاماسي reflects verified balance ~78M
-            const isAmasi = c.code.toUpperCase() === 'C04' || c.name.includes('الاماسي');
-            let rem = (typeof c.remaining === 'number' && !isNaN(c.remaining) && c.remaining > 0)
-              ? c.remaining
-              : (init?.remaining || 0);
-            if (isAmasi && (rem < 70000000 || rem === 58479942)) {
-              rem = 78479942;
-            }
+            const rem =
+              typeof c.remaining === 'number' && !isNaN(c.remaining)
+                ? c.remaining
+                : (init?.remaining || 0);
             return {
               ...c,
               remaining: rem,
@@ -271,8 +344,9 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return list;
   }, [transactions]);
 
-  const getNextRefNo = (type: 'Inflow' | 'Outflow'): string => {
-    const prefix = type === 'Inflow' ? 'D' : 'C';
+  const getNextRefNo = (typeOrPrefix: 'Inflow' | 'Outflow' | 'C' | 'D' | 'Credit' | 'Debit' = 'C'): string => {
+    const isDebit = typeOrPrefix === 'Inflow' || typeOrPrefix === 'D' || typeOrPrefix === 'Debit';
+    const prefix = isDebit ? 'D' : 'C';
     const matching = transactions
       .filter(t => {
         if (!t.refNo) return false;
@@ -280,13 +354,14 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return upper.startsWith(prefix);
       })
       .map(t => {
-        const match = t.refNo.match(/\d+/);
-        return match ? parseInt(match[0], 10) : 0;
+        const match = t.refNo.trim().toUpperCase().replace(new RegExp(`^${prefix}0*`, 'i'), '');
+        const num = parseInt(match, 10);
+        return isNaN(num) ? 0 : num;
       })
       .filter(n => n > 0);
 
     if (matching.length === 0) {
-      return type === 'Inflow' ? 'D2401' : 'C8201';
+      return prefix === 'D' ? 'D1' : 'C1';
     }
 
     const maxNum = Math.max(...matching);
@@ -304,15 +379,20 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return `INV-${maxNum + 1}`;
   };
 
-  const getNextClientCode = (): string => {
-    const allCodes = [...clients, ...INITIAL_CLIENTS].map(c => c.code.trim().toUpperCase());
-    const numbers = allCodes
-      .map(code => {
-        const match = code.match(/C0*(\d+)/i);
+  const getNextClientCode = (clientList?: ClientItem[]): string => {
+    const sourceClients =
+      clientList && clientList.length > 0
+        ? clientList
+        : clients.length > 0
+          ? clients
+          : INITIAL_CLIENTS;
+    const numbers = sourceClients
+      .map(c => {
+        const match = String(c.code || '').trim().toUpperCase().match(/^C0*(\d+)$/i);
         return match ? parseInt(match[1], 10) : 0;
       })
       .filter(n => n > 0);
-    const max = numbers.length > 0 ? Math.max(...numbers) : 33;
+    const max = numbers.length > 0 ? Math.max(...numbers) : 0;
     const nextNum = max + 1;
     return nextNum < 10 ? `C0${nextNum}` : `C${nextNum}`;
   };
@@ -464,25 +544,35 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setTransactions(prev => [...prev, newTx]);
 
       // Update client remaining debt in local state
+      const targetCanonCode = canonicalClientCode(data.clientCode);
+      const targetNormName = normalizeArabicText(data.clientName);
       const matchedClient = clients.find(
         c =>
-          c.code.toUpperCase() === data.clientCode.trim().toUpperCase() ||
-          c.name.trim() === data.clientName.trim()
+          (targetCanonCode && canonicalClientCode(c.code) === targetCanonCode) ||
+          (targetNormName && normalizeArabicText(c.name) === targetNormName)
       );
 
-      // Inflow means client paid cash into treasury -> reduce debt
+      const isOwner =
+        targetCanonCode === 'C1' ||
+        (matchedClient ? canonicalClientCode(matchedClient.code) === 'C1' : false);
+
+      // Client payments (recorded as Outflow OR Inflow in Cashflow) decrease remaining debt for all non-Owner clients
+      const prevClientRem =
+        matchedClient && typeof matchedClient.remaining === 'number' && !isNaN(matchedClient.remaining)
+          ? matchedClient.remaining
+          : 0;
       const calculatedNewRemaining: number = matchedClient
-        ? (isIn
-            ? Math.max(0, (typeof matchedClient.remaining === 'number' ? matchedClient.remaining : 0) - data.amount)
-            : (typeof matchedClient.remaining === 'number' ? matchedClient.remaining : 0))
+        ? isOwner
+          ? 0
+          : Math.max(0, prevClientRem - data.amount)
         : 0;
 
-      if (matchedClient && isIn) {
+      if (matchedClient && !isOwner) {
         setClients(prevClients =>
           prevClients.map(c => {
             if (
-              c.code.toUpperCase() === data.clientCode.trim().toUpperCase() ||
-              c.name.trim() === data.clientName.trim()
+              (targetCanonCode && canonicalClientCode(c.code) === targetCanonCode) ||
+              (targetNormName && normalizeArabicText(c.name) === targetNormName)
             ) {
               return {
                 ...c,
@@ -583,16 +673,26 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         unpaidPart = Math.max(0, data.amount - actualDownPayment);
       }
 
-      // Update Client Remaining Debt locally
-      let finalClientRemaining = 0;
+      // Update Client Remaining Debt synchronously & in local state
+      const targetCanonCode = canonicalClientCode(cleanCode);
+      const targetNormName = normalizeArabicText(cleanName);
+      const existingClient = clients.find(
+        c =>
+          (targetCanonCode && canonicalClientCode(c.code) === targetCanonCode) ||
+          (targetNormName && normalizeArabicText(c.name) === targetNormName)
+      );
+      const prevClientRem =
+        existingClient && typeof existingClient.remaining === 'number' && !isNaN(existingClient.remaining)
+          ? existingClient.remaining
+          : 0;
+      const finalClientRemaining = targetCanonCode === 'C1' ? 0 : prevClientRem + unpaidPart;
+
       setClients(prevClients =>
         prevClients.map(c => {
           if (
-            c.code.toUpperCase() === cleanCode ||
-            c.name.trim().toLowerCase() === cleanName.toLowerCase()
+            (targetCanonCode && canonicalClientCode(c.code) === targetCanonCode) ||
+            (targetNormName && normalizeArabicText(c.name) === targetNormName)
           ) {
-            const prevRem = typeof c.remaining === 'number' ? c.remaining : 0;
-            finalClientRemaining = prevRem + unpaidPart;
             return {
               ...c,
               remaining: finalClientRemaining,
@@ -608,7 +708,8 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       if (actualDownPayment > 0) {
         cashflowLogged = true;
-        const refNumber = getNextRefNo('Inflow');
+        // User requested: order down payments/partial payments must start with 'C' (Credit), NOT 'D' (e.g. C31)
+        const refNumber = getNextRefNo('C');
         const newBal = currentBalance + actualDownPayment;
 
         const descSuffix = data.description ? ` (${data.description})` : '';
@@ -663,7 +764,7 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Offline Handling
       if (!isOnline || !navigator.onLine) {
         setOfflineBannerMessage('Offline Mode: Data saved locally and will sync when reconnected.');
-        await postOrderToSheet(sheetConfig.appsScriptUrl, newOrder, cashflowTx);
+        await postOrderToSheet(sheetConfig.appsScriptUrl, newOrder, cashflowTx, finalClientRemaining);
         setOfflineQueueCount(getOfflineQueue().length);
         return {
           success: true,
@@ -676,9 +777,9 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Online POST to Google Sheet
       if (sheetConfig.appsScriptUrl && sheetConfig.appsScriptUrl.startsWith('https://script.google.com/')) {
         setIsSyncing(true);
-        setSyncStatusMessage('Updating client debt & syncing Cashflow...');
+        setSyncStatusMessage('Logging order to Order Log & updating client remaining debt...');
         try {
-          const postRes = await postOrderToSheet(sheetConfig.appsScriptUrl, newOrder, cashflowTx);
+          const postRes = await postOrderToSheet(sheetConfig.appsScriptUrl, newOrder, cashflowTx, finalClientRemaining);
           if (postRes.queuedLocally) {
             setOfflineBannerMessage('Offline Mode: Data saved locally and will sync when reconnected.');
             setOfflineQueueCount(getOfflineQueue().length);
@@ -691,7 +792,7 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 prev.map(t => (t.id === cashflowTx!.id ? { ...t, syncedToSheet: true } : t))
               );
             }
-            setSyncStatusMessage('Client debt updated in sheet');
+            setSyncStatusMessage('Order recorded in Order Log & client remaining debt updated in sheet');
           }
         } catch (err) {
           console.error('Error posting order:', err);
@@ -731,15 +832,20 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     remaining?: number;
   }): Promise<{ success: boolean; message: string }> => {
     const cleanCode = data.code.trim().toUpperCase() || getNextClientCode();
+    const canonCode = canonicalClientCode(cleanCode);
     const cleanName = data.name.trim();
 
     if (!cleanName) {
       return { success: false, message: 'Client name is required.' };
     }
 
-    const exists = clients.some(c => c.code.toUpperCase() === cleanCode);
+    const exists = clients.some(
+      c =>
+        c.code.trim().toUpperCase() === cleanCode ||
+        canonicalClientCode(c.code) === canonCode
+    );
     if (exists) {
-      return { success: false, message: `Client code "${cleanCode}" already exists.` };
+      return { success: false, message: `Client code "${cleanCode}" already exists. Please use a unique code.` };
     }
 
     const newClient: ClientItem = {
@@ -769,7 +875,13 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setIsSyncing(true);
       setSyncStatusMessage('Adding client to Google Sheet...');
       try {
-        await postNewClientToSheet(sheetConfig.appsScriptUrl, newClient);
+        const sheetRes = await postNewClientToSheet(sheetConfig.appsScriptUrl, newClient);
+        if (!sheetRes.success) {
+          return {
+            success: false,
+            message: `Client added to web app, but Google Sheet returned: "${sheetRes.message}". Please ensure the latest Apps Script is deployed in your Google Sheet (Deploy > Manage deployments > Edit > New version).`,
+          };
+        }
       } catch (err) {
         console.error('Error posting client:', err);
       } finally {
@@ -810,7 +922,8 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             phone: data.phone !== undefined ? data.phone.trim() : c.phone,
             area: data.area !== undefined ? data.area.trim() : c.area,
             email: data.email !== undefined ? data.email.trim() : c.email,
-            remaining: typeof data.remaining === 'number' ? data.remaining : c.remaining,
+            // Modifying a client never alters running balance
+            remaining: c.remaining,
             fullLabel: `${cleanCode} - ${cleanName}`,
           };
           return updatedItem;
@@ -820,8 +933,17 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     );
 
     if (updatedItem) {
+      // Send client contact info without remaining so Google Sheet balance is never reset
+      const clientUpdatePayload = {
+        code: (updatedItem as ClientItem).code,
+        name: (updatedItem as ClientItem).name,
+        phone: (updatedItem as ClientItem).phone,
+        area: (updatedItem as ClientItem).area,
+        email: (updatedItem as ClientItem).email,
+      };
+
       if (!isOnline || !navigator.onLine) {
-        await updateClientInSheet(sheetConfig.appsScriptUrl, updatedItem);
+        await updateClientInSheet(sheetConfig.appsScriptUrl, clientUpdatePayload);
         setOfflineQueueCount(getOfflineQueue().length);
         setOfflineBannerMessage('Offline Mode: Client updated locally and queued for sync.');
         return { success: true, message: `Client ${cleanCode} updated locally.` };
@@ -831,7 +953,7 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setIsSyncing(true);
         setSyncStatusMessage('Updating client in Google Sheet...');
         try {
-          await updateClientInSheet(sheetConfig.appsScriptUrl, updatedItem);
+          await updateClientInSheet(sheetConfig.appsScriptUrl, clientUpdatePayload);
         } catch (err) {
           console.error('Error updating client:', err);
         } finally {
@@ -871,7 +993,7 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   // Sync with Google Sheet
-  const syncWithGoogleSheet = async () => {
+  const syncWithGoogleSheet = async (): Promise<ClientItem[] | void> => {
     const url = sheetConfig.appsScriptUrl || CONFIGURED_APPS_SCRIPT_URL;
     if (!url) return;
 
@@ -880,37 +1002,52 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const result = await testAppsScriptConnection(url);
       if (result.success && result.data) {
+        const freshTxs: Transaction[] = Array.isArray(result.data.transactions)
+          ? result.data.transactions
+          : transactions;
+        const freshOrders: OrderEntry[] = Array.isArray(result.data.orders)
+          ? result.data.orders
+          : orders;
+
         if (Array.isArray(result.data.transactions) && result.data.transactions.length > 0) {
           setTransactions(result.data.transactions);
         }
+        if (Array.isArray(result.data.orders) && result.data.orders.length > 0) {
+          setOrders(result.data.orders);
+        }
+
+        let resolvedClients: ClientItem[] | undefined = undefined;
         if (Array.isArray(result.data.clients) && result.data.clients.length > 0) {
           const initialMap = new Map(INITIAL_CLIENTS.map(c => [c.code.toUpperCase(), c]));
-          const merged = result.data.clients.map((c: any) => {
-            const init = initialMap.get(c.code.toUpperCase());
-            const isAmasi = c.code.toUpperCase() === 'C04' || c.name.includes('الاماسي');
+          const parsedClients: ClientItem[] = result.data.clients.map((c: any) => {
+            const cleanCode = String(c.code || '').trim().toUpperCase();
+            const init = initialMap.get(cleanCode);
             let rem = c.remaining;
             if (typeof rem === 'string') {
               rem = parseFloat(rem.replace(/,/g, ''));
             }
-            if (typeof rem !== 'number' || isNaN(rem) || rem === 0) {
+            if (typeof rem !== 'number' || isNaN(rem)) {
               rem = init?.remaining || 0;
-            }
-            if (isAmasi && (rem < 70000000 || rem === 58479942)) {
-              rem = 78479942;
             }
             return {
               ...c,
+              code: cleanCode || c.code,
               remaining: rem,
             };
           });
-          setClients(merged);
+
+          // Derive exact remaining balances from Order Log - Cashflow so payments always subtract reliably
+          resolvedClients = deriveClientBalances(parsedClients, freshOrders, freshTxs);
+          setClients(resolvedClients);
         }
+
         setSheetConfig(prev => ({
           ...prev,
           isConnected: true,
           lastSyncedAt: new Date().toLocaleTimeString(),
         }));
-        setSyncStatusMessage('Synchronized with Google Sheet');
+        setSyncStatusMessage('Synchronized with Google Sheet (Cashflow, Orders & Clients)');
+        return resolvedClients;
       }
     } catch (e) {
       console.error(e);
@@ -996,6 +1133,24 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, []);
 
+  const pushAllClientBalances = async (): Promise<{ success: boolean; message: string }> => {
+    const url = sheetConfig.appsScriptUrl || CONFIGURED_APPS_SCRIPT_URL;
+    if (!url) return { success: false, message: 'Google Apps Script URL is not set.' };
+
+    setIsSyncing(true);
+    setSyncStatusMessage('Pushing client balances to Google Sheet...');
+    try {
+      const res = await pushAllClientBalancesToSheet(url, clients);
+      setSyncStatusMessage(res.message);
+      return res;
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Failed to sync balances' };
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncStatusMessage(null), 4000);
+    }
+  };
+
   return (
     <TreasuryContext.Provider
       value={{
@@ -1028,6 +1183,7 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deleteTransaction,
         updateSheetConfig,
         syncWithGoogleSheet,
+        pushAllClientBalances,
         getNextRefNo,
         getNextInvoiceNo,
         getNextClientCode,

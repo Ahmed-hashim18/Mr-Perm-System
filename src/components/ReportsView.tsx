@@ -32,7 +32,7 @@ export const ReportsView: React.FC = () => {
   // -------------------------------------------------------------
   // REPORT 1: CLIENT REPORT / DEBT REPORT (Sheet: "Debt Report")
   // -------------------------------------------------------------
-  const [debtReportDate, setDebtReportDate] = useState<string>('2026-11-08');
+  const [debtReportDate, setDebtReportDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [debtSearch, setDebtSearch] = useState<string>('');
   const debtReportPrintRef = useRef<HTMLDivElement>(null);
 
@@ -84,19 +84,19 @@ export const ReportsView: React.FC = () => {
       return { rows: [], totalCashflow: 0, totalOrders: 0, finalBalance: 0 };
     }
 
-    const cCode = selectedClient.code.toUpperCase();
+    const cCode = selectedClient.code.trim().toUpperCase();
     const cName = selectedClient.name.trim();
 
     // 1. Transactions from Cashflow for this client
     const matchingTxs = transactions.filter(t => {
-      const matchCode = t.clientCode && t.clientCode.toUpperCase() === cCode;
+      const matchCode = t.clientCode && t.clientCode.trim().toUpperCase() === cCode;
       const matchName = t.clientName && t.clientName.trim() === cName;
       return matchCode || matchName;
     });
 
     // 2. Orders for this client
     const matchingOrders = orders.filter(o => {
-      const matchCode = o.clientCode && o.clientCode.toUpperCase() === cCode;
+      const matchCode = o.clientCode && o.clientCode.trim().toUpperCase() === cCode;
       const matchName = o.clientName && o.clientName.trim() === cName;
       return matchCode || matchName;
     });
@@ -180,18 +180,24 @@ export const ReportsView: React.FC = () => {
   // REPORT 3: SNAPSHOT REPORT (Sheet: "Snapshot")
   // -------------------------------------------------------------
   const [snapshotStartDate, setSnapshotStartDate] = useState<string>('2026-09-01');
-  const [snapshotEndDate, setSnapshotEndDate] = useState<string>('2026-11-09');
+  const [snapshotEndDate, setSnapshotEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [snapshotSearch, setSnapshotSearch] = useState<string>('');
   const snapshotPrintRef = useRef<HTMLDivElement>(null);
 
   const snapshotRows = useMemo(() => {
-    const start = snapshotStartDate ? new Date(snapshotStartDate).getTime() : 0;
+    const start = snapshotStartDate ? new Date(snapshotStartDate + 'T00:00:00').getTime() : 0;
     const end = snapshotEndDate ? new Date(snapshotEndDate + 'T23:59:59').getTime() : Infinity;
 
     return transactions
       .filter(t => {
-        const tTime = new Date(t.date).getTime();
-        return tTime >= start && tTime <= end;
+        const rawDate = String(t.date || '').trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+          if (snapshotStartDate && rawDate < snapshotStartDate) return false;
+          if (snapshotEndDate && rawDate > snapshotEndDate) return false;
+          return true;
+        }
+        const tTime = new Date(rawDate).getTime();
+        return !isNaN(tTime) && tTime >= start && tTime <= end;
       })
       .filter(t => {
         if (!snapshotSearch) return true;

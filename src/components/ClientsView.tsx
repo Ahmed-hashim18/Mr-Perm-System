@@ -33,6 +33,12 @@ function normalizeText(text: string): string {
     .replace(/\s+/g, ' ');
 }
 
+function canonicalClientCode(code: string): string {
+  const upper = String(code || '').trim().toUpperCase();
+  const match = upper.match(/^C0*(\d+)$/);
+  return match ? `C${parseInt(match[1], 10)}` : upper;
+}
+
 export const ClientsView: React.FC = () => {
   const {
     clients,
@@ -40,6 +46,8 @@ export const ClientsView: React.FC = () => {
     addClient,
     updateClient,
     getNextClientCode,
+    syncWithGoogleSheet,
+    isOnline,
     isSyncing,
     setCurrentTab,
   } = useTreasury();
@@ -67,21 +75,49 @@ export const ClientsView: React.FC = () => {
   const [editPhone, setEditPhone] = useState<string>('');
   const [editArea, setEditArea] = useState<string>('');
   const [editEmail, setEditEmail] = useState<string>('');
-  const [editRemainingStr, setEditRemainingStr] = useState<string>('0');
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isFetchingCode, setIsFetchingCode] = useState<boolean>(false);
+  const [addFormError, setAddFormError] = useState<string | null>(null);
+  const [editFormError, setEditFormError] = useState<string | null>(null);
+  const codeEditedRef = useRef<boolean>(false);
 
-  // Open Add Modal with auto-detected next client code
-  const handleOpenAddModal = () => {
-    const nextCode = getNextClientCode();
-    setNewCode(nextCode);
+  // Check duplicate client code (trimmed, case-insensitive, canonical C06 == C6)
+  const trimmedNewCode = newCode.trim().toUpperCase();
+  const duplicateClient = trimmedNewCode
+    ? clients.find(
+        c =>
+          c.code.trim().toUpperCase() === trimmedNewCode ||
+          canonicalClientCode(c.code) === canonicalClientCode(trimmedNewCode)
+      )
+    : undefined;
+  const isDuplicateCode = Boolean(duplicateClient);
+
+  // Open Add Modal with auto-detected next client code fetched fresh from Google Sheet
+  const handleOpenAddModal = async () => {
+    codeEditedRef.current = false;
+    setAddFormError(null);
+    const initialNext = getNextClientCode();
+    setNewCode(initialNext);
     setNewName('');
     setNewPhone('');
     setNewArea('');
     setNewEmail('');
     setNewRemainingStr('0');
     setIsAddModalOpen(true);
+
+    if (isOnline && navigator.onLine) {
+      setIsFetchingCode(true);
+      try {
+        const freshClients = await syncWithGoogleSheet();
+        if (Array.isArray(freshClients) && freshClients.length > 0 && !codeEditedRef.current) {
+          setNewCode(getNextClientCode(freshClients));
+        }
+      } finally {
+        setIsFetchingCode(false);
+      }
+    }
   };
 
   // Open Edit Modal for a client
@@ -91,7 +127,6 @@ export const ClientsView: React.FC = () => {
     setEditPhone(client.phone || '');
     setEditArea(client.area || '');
     setEditEmail(client.email || '');
-    setEditRemainingStr((client.remaining || 0).toLocaleString('en-US'));
   };
 
   // Comma formatting helpers
@@ -115,8 +150,16 @@ export const ClientsView: React.FC = () => {
   // Save New Client
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAddFormError(null);
+
+    const cleanCode = newCode.trim().toUpperCase() || getNextClientCode();
+    if (isDuplicateCode) {
+      setAddFormError(`Client code "${cleanCode}" already exists (${duplicateClient?.name}). Please choose a unique code.`);
+      return;
+    }
+
     if (!newName.trim()) {
-      alert('Please enter a Client Name.');
+      setAddFormError('Please enter a Client Name.');
       return;
     }
 
@@ -124,7 +167,7 @@ export const ClientsView: React.FC = () => {
     setIsSubmitting(true);
 
     const result = await addClient({
-      code: newCode.trim().toUpperCase() || getNextClientCode(),
+      code: cleanCode,
       name: newName.trim(),
       phone: newPhone.trim(),
       area: newArea.trim(),
@@ -139,7 +182,7 @@ export const ClientsView: React.FC = () => {
       setIsAddModalOpen(false);
       setTimeout(() => setToastMessage(null), 4000);
     } else {
-      alert(result.message);
+      setAddFormError(result.message);
     }
   };
 
@@ -147,13 +190,13 @@ export const ClientsView: React.FC = () => {
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingClient) return;
+    setEditFormError(null);
 
     if (!editName.trim()) {
-      alert('Client Name cannot be empty.');
+      setEditFormError('Client Name cannot be empty.');
       return;
     }
 
-    const rem = parseFloat(editRemainingStr.replace(/,/g, '')) || 0;
     setIsSubmitting(true);
 
     const result = await updateClient({
@@ -162,7 +205,6 @@ export const ClientsView: React.FC = () => {
       phone: editPhone.trim(),
       area: editArea.trim(),
       email: editEmail.trim(),
-      remaining: rem,
     });
 
     setIsSubmitting(false);
@@ -172,7 +214,7 @@ export const ClientsView: React.FC = () => {
       setEditingClient(null);
       setTimeout(() => setToastMessage(null), 4000);
     } else {
-      alert(result.message);
+      setEditFormError(result.message);
     }
   };
 
@@ -310,7 +352,9 @@ export const ClientsView: React.FC = () => {
           {/* PDF Report Branding Header */}
           <div className="mb-4 pb-3 border-b border-slate-200 flex items-center justify-between text-xs" dir="rtl">
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-sm text-[#284742]">{COMPANY_NAME_AR}</span>
+              <span className="font-extrabold text-base sm:text-lg text-[#1b3832] tracking-tight bg-[#284742]/10 border border-[#284742]/20 px-3 py-1 rounded-xl shadow-2xs inline-flex items-center gap-1.5">
+                {COMPANY_NAME_AR}
+              </span>
               <span className="text-slate-400">&bull;</span>
               <span className="font-bold text-slate-700">تقرير دليل العملاء وأرصدة المديونية</span>
             </div>
@@ -572,6 +616,13 @@ export const ClientsView: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreateClient} className="space-y-4">
+              {addFormError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2 text-xs text-rose-800 font-semibold">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{addFormError}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 {/* Auto-detected Client Code */}
                 <div>
@@ -580,7 +631,7 @@ export const ClientsView: React.FC = () => {
                       Client Code
                     </label>
                     <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                      Auto-detected
+                      {isFetchingCode ? 'Fetching from sheet...' : 'Auto from sheet'}
                     </span>
                   </div>
                   <div className="relative">
@@ -589,11 +640,24 @@ export const ClientsView: React.FC = () => {
                       type="text"
                       required
                       value={newCode}
-                      onChange={e => setNewCode(e.target.value.toUpperCase())}
-                      placeholder="e.g. C34"
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono font-bold text-[#284742] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
+                      onChange={e => {
+                        codeEditedRef.current = true;
+                        setAddFormError(null);
+                        setNewCode(e.target.value.toUpperCase());
+                      }}
+                      placeholder="e.g. C33"
+                      className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-mono font-bold focus:bg-white focus:outline-none focus:ring-2 ${
+                        isDuplicateCode
+                          ? 'border-rose-400 text-rose-700 focus:ring-rose-200'
+                          : 'border-slate-200 text-[#284742] focus:ring-[#284742]/20'
+                      }`}
                     />
                   </div>
+                  {isDuplicateCode && (
+                    <p className="text-[11px] font-semibold text-rose-600 mt-1">
+                      Code already used by {duplicateClient?.name}. Must be unique.
+                    </p>
+                  )}
                 </div>
 
                 {/* Client Name */}
@@ -700,8 +764,8 @@ export const ClientsView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || isSyncing}
-                  className="px-6 py-2.5 text-xs font-bold text-white bg-[#284742] hover:bg-[#1e3632] rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                  disabled={isSubmitting || isSyncing || isFetchingCode || isDuplicateCode || !trimmedNewCode}
+                  className="px-6 py-2.5 text-xs font-bold text-white bg-[#284742] hover:bg-[#1e3632] rounded-xl shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isSubmitting ? 'Adding...' : 'Create & Save to Sheet'}
                 </button>
@@ -724,7 +788,7 @@ export const ClientsView: React.FC = () => {
                   <h3 className="font-extrabold text-xl text-slate-900">
                     Modify Client: <span className="font-mono text-[#284742]">{editingClient.code}</span>
                   </h3>
-                  <p className="text-xs text-slate-500">Update client details and remaining balance</p>
+                  <p className="text-xs text-slate-500">Update client contact and location details</p>
                 </div>
               </div>
               <button
@@ -737,6 +801,12 @@ export const ClientsView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveEdit} className="space-y-4">
+              {editFormError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2 text-xs text-rose-800 font-semibold">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{editFormError}</span>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 {/* Client Code (Read-only badge) */}
                 <div>
@@ -811,19 +881,15 @@ export const ClientsView: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Total Remining (SDG)
+                    Remaining Debt
                   </label>
-                  <div className="relative flex items-center">
-                    <span className="absolute left-3.5 text-xs font-bold text-slate-400">
-                      SDG
-                    </span>
-                    <input
-                      type="text"
-                      value={editRemainingStr}
-                      onChange={e => handleFormatCommaInput(e.target.value, setEditRemainingStr)}
-                      className="w-full pl-14 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
-                    />
+                  <div className="px-4 py-2.5 bg-slate-100/90 border border-slate-200 rounded-xl text-sm font-mono font-bold text-slate-800 flex items-center justify-between">
+                    <span>{(editingClient.remaining || 0).toLocaleString('en-US')}</span>
+                    <span className="text-xs font-bold text-slate-400">{sheetConfig.currency}</span>
                   </div>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Running debt is updated automatically via Orders and Payments
+                  </p>
                 </div>
               </div>
 

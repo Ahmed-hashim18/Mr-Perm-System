@@ -156,7 +156,7 @@ export const MakeAnOrderView: React.FC = () => {
 
   const clientCurrentRemaining: number = React.useMemo(() => {
     if (!selectedClientObj) return 0;
-    if (typeof selectedClientObj.remaining === 'number' && selectedClientObj.remaining > 0) {
+    if (typeof selectedClientObj.remaining === 'number' && !isNaN(selectedClientObj.remaining)) {
       return selectedClientObj.remaining;
     }
     const fromInit = INITIAL_CLIENTS.find(

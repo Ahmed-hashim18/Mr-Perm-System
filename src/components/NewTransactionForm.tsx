@@ -169,7 +169,7 @@ export const NewTransactionForm: React.FC = () => {
   // Ensure remaining balance is accurately resolved (e.g. CDC C29 -> 11,755,633 SDG)
   const clientRemaining: number = React.useMemo(() => {
     if (!selectedClientObj) return 0;
-    if (typeof selectedClientObj.remaining === 'number' && selectedClientObj.remaining > 0) {
+    if (typeof selectedClientObj.remaining === 'number' && !isNaN(selectedClientObj.remaining)) {
       return selectedClientObj.remaining;
     }
     const fromInit = INITIAL_CLIENTS.find(
@@ -486,7 +486,7 @@ export const NewTransactionForm: React.FC = () => {
                   required
                   value={refNo}
                   onChange={e => setRefNo(e.target.value)}
-                  placeholder="e.g. D2402 or C8224"
+                  placeholder="e.g. C31 or D6"
                   className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-sm font-semibold text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
                 />
               </div>
@@ -610,7 +610,11 @@ export const NewTransactionForm: React.FC = () => {
                   {type === 'Outflow' ? 'Remaining after Outflow:' : 'Remaining after Inflow:'}
                 </span>
                 <span className="text-sm font-extrabold text-[#284742] px-2.5 py-0.5 bg-white rounded-lg border border-amber-200 shadow-2xs">
-                  {(clientRemaining - parsedAmount).toLocaleString('en-US')} SDG
+                  {(selectedClientObj.code.trim().toUpperCase() === 'C01'
+                    ? 0
+                    : Math.max(0, clientRemaining - parsedAmount)
+                  ).toLocaleString('en-US')}{' '}
+                  SDG
                 </span>
               </div>
             </div>

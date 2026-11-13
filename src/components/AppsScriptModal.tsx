@@ -23,6 +23,7 @@ export const AppsScriptModal: React.FC = () => {
     sheetConfig,
     updateSheetConfig,
     syncWithGoogleSheet,
+    pushAllClientBalances,
   } = useTreasury();
 
   const [urlInput, setUrlInput] = useState(sheetConfig.appsScriptUrl);
@@ -192,10 +193,11 @@ export const AppsScriptModal: React.FC = () => {
                     </span>
                     <div>
                       <p className="font-semibold text-slate-900">
-                        Deploy as Web App
+                        Deploy / Update as Web App
                       </p>
                       <p className="text-slate-500 mt-0.5">
-                        Click <strong>Deploy</strong> → <strong>New deployment</strong> → select <strong>Web app</strong>. Set <em>Execute as:</em> <strong>Me</strong> and <em>Who has access:</em> <strong>Anyone</strong>.
+                        When updating code: Click <strong>Deploy</strong> → <strong>Manage deployments</strong> → click <strong>Edit (pencil icon)</strong> → set <em>Version</em> to <strong>New version</strong> → click <strong>Deploy</strong>.<br />
+                        <span className="text-[11px] text-amber-700 font-semibold">Important: Selecting "New version" is required by Google for script code updates to take effect.</span>
                       </p>
                     </div>
                   </div>
@@ -271,6 +273,32 @@ export const AppsScriptModal: React.FC = () => {
                 </div>
               </div>
 
+              {/* Push client balances to sheet button */}
+              <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
+                    <span>Sync Client Remining amount to Sheet</span>
+                  </h4>
+                  <p className="text-[11px] text-emerald-800/80 mt-0.5">
+                    Updates the <strong>Remining amount</strong> column in your Google Sheet (Client tab) for all clients with their current debt.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isTesting}
+                  onClick={async () => {
+                    setIsTesting(true);
+                    const res = await pushAllClientBalances();
+                    setTestResult(res);
+                    setIsTesting(false);
+                  }}
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition-all shrink-0 cursor-pointer disabled:opacity-50"
+                >
+                  Push Client Balances Now
+                </button>
+              </div>
+
               {/* Test Connection Results */}
               {testResult && (
                 <div
@@ -332,77 +360,250 @@ export const AppsScriptModal: React.FC = () => {
           )}
 
           {activeTab === 'structure' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Google Sheet Columns Structure
+                  Google Sheet Tabs & Columns Structure
                 </h4>
                 <p className="text-xs text-slate-500">
-                  Matches your Cash Flow sheet structure with automatic row creation:
+                  Your Google Spreadsheet is synchronized across three sheets:
                 </p>
               </div>
 
-              <div className="border border-slate-200 rounded-2xl overflow-hidden">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-[#284742] text-white font-bold">
-                    <tr>
-                      <th className="py-2.5 px-4">Col</th>
-                      <th className="py-2.5 px-4">Header</th>
-                      <th className="py-2.5 px-4">Example Value</th>
-                      <th className="py-2.5 px-4">Description</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-mono">
-                    <tr className="bg-white">
-                      <td className="py-2 px-4 font-bold text-slate-500">A</td>
-                      <td className="py-2 px-4 font-bold text-slate-800">Timestamp</td>
-                      <td className="py-2 px-4 text-slate-600">2026-11-09 12:30:15</td>
-                      <td className="py-2 px-4 font-sans text-slate-600">Exact date and time stamp</td>
-                    </tr>
-                    <tr className="bg-slate-50">
-                      <td className="py-2 px-4 font-bold text-slate-500">B</td>
-                      <td className="py-2 px-4 font-bold text-slate-800">Date</td>
-                      <td className="py-2 px-4 text-slate-600">2026-11-09</td>
-                      <td className="py-2 px-4 font-sans text-slate-600">Entry transaction date</td>
-                    </tr>
-                    <tr className="bg-white">
-                      <td className="py-2 px-4 font-bold text-slate-500">C</td>
-                      <td className="py-2 px-4 font-bold text-slate-800">Client Code</td>
-                      <td className="py-2 px-4 text-slate-600">C04</td>
-                      <td className="py-2 px-4 font-sans text-slate-600">e.g. C01 to C33</td>
-                    </tr>
-                    <tr className="bg-slate-50">
-                      <td className="py-2 px-4 font-bold text-slate-500">D</td>
-                      <td className="py-2 px-4 font-bold text-slate-800">Client Name</td>
-                      <td className="py-2 px-4 text-slate-600" dir="auto">الاماسي</td>
-                      <td className="py-2 px-4 font-sans text-slate-600">Arabic or English client name</td>
-                    </tr>
-                    <tr className="bg-white">
-                      <td className="py-2 px-4 font-bold text-slate-500">E</td>
-                      <td className="py-2 px-4 font-bold text-slate-800">Ref No.</td>
-                      <td className="py-2 px-4 text-slate-600">C022 / D001</td>
-                      <td className="py-2 px-4 font-sans text-slate-600">Reference identifier</td>
-                    </tr>
-                    <tr className="bg-slate-50">
-                      <td className="py-2 px-4 font-bold text-slate-500">F</td>
-                      <td className="py-2 px-4 font-bold text-slate-800">Description</td>
-                      <td className="py-2 px-4 text-slate-600 font-sans" dir="auto">جزء من فاتورة</td>
-                      <td className="py-2 px-4 font-sans text-slate-600">Transaction details</td>
-                    </tr>
-                    <tr className="bg-white">
-                      <td className="py-2 px-4 font-bold text-slate-500">G</td>
-                      <td className="py-2 px-4 font-bold text-slate-800">Type {'{in/out}'}</td>
-                      <td className="py-2 px-4 text-emerald-700 font-bold">in / out</td>
-                      <td className="py-2 px-4 font-sans text-slate-600">Exact &quot;in&quot; for inflow or &quot;out&quot; for outflow (matches Snapshot formula)</td>
-                    </tr>
-                    <tr className="bg-slate-50">
-                      <td className="py-2 px-4 font-bold text-slate-500">H</td>
-                      <td className="py-2 px-4 font-bold text-slate-800">Amount</td>
-                      <td className="py-2 px-4 text-slate-900 font-bold">20000000</td>
-                      <td className="py-2 px-4 font-sans text-slate-600">Transaction amount in SDG</td>
-                    </tr>
-                  </tbody>
-                </table>
+              {/* 1. Cashflow Sheet */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 bg-[#284742] text-white text-[11px] font-bold rounded-md">
+                    Sheet 1: Cashflow
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    Logs all inflow & outflow cash transactions and down payments
+                  </span>
+                </div>
+                <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[#284742] text-white font-bold">
+                      <tr>
+                        <th className="py-2 px-3">Col</th>
+                        <th className="py-2 px-3">Header</th>
+                        <th className="py-2 px-3">Example</th>
+                        <th className="py-2 px-3">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-mono">
+                      <tr className="bg-white">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">A</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Timestamp</td>
+                        <td className="py-1.5 px-3 text-slate-600">2026-11-11 12:30:15</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Exact date and time stamp</td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">B</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Date</td>
+                        <td className="py-1.5 px-3 text-slate-600">2026-11-11</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Transaction date</td>
+                      </tr>
+                      <tr className="bg-white">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">C</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Client Code</td>
+                        <td className="py-1.5 px-3 text-slate-600">C04</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">e.g. C01 to C34</td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">D</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Client Name</td>
+                        <td className="py-1.5 px-3 text-slate-600" dir="auto">الاماسي</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Client name</td>
+                      </tr>
+                      <tr className="bg-white">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">E</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Ref No.</td>
+                        <td className="py-1.5 px-3 text-slate-600">D2401 / C8201</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Reference identifier</td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">F</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Description</td>
+                        <td className="py-1.5 px-3 text-slate-600 font-sans" dir="auto">سداد دفعة طلب</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Transaction details</td>
+                      </tr>
+                      <tr className="bg-white">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">G</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Type</td>
+                        <td className="py-1.5 px-3 text-emerald-700 font-bold">in / out</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">"in" (Inflow) or "out" (Outflow)</td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">H</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Amount</td>
+                        <td className="py-1.5 px-3 text-slate-900 font-bold">5000000</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Amount in SDG</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 2. Order Log Sheet */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 bg-blue-700 text-white text-[11px] font-bold rounded-md">
+                    Sheet 2: Order Log
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    Automatically records every order submitted from &quot;Make An Order&quot;
+                  </span>
+                </div>
+                <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-blue-800 text-white font-bold">
+                      <tr>
+                        <th className="py-2 px-3">Col</th>
+                        <th className="py-2 px-3">Header</th>
+                        <th className="py-2 px-3">Example</th>
+                        <th className="py-2 px-3">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-mono">
+                      <tr className="bg-white">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">A</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Timestamp</td>
+                        <td className="py-1.5 px-3 text-slate-600">2026-11-11 14:10:00</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Exact time of submission</td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">B</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Date</td>
+                        <td className="py-1.5 px-3 text-slate-600">2026-11-11</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Order invoice date</td>
+                      </tr>
+                      <tr className="bg-white">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">C</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Client Code</td>
+                        <td className="py-1.5 px-3 text-slate-600">C26</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">e.g. C26</td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">D</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Client Name</td>
+                        <td className="py-1.5 px-3 text-slate-600" dir="auto">ميديكال بلص</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Client company name</td>
+                      </tr>
+                      <tr className="bg-white">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">E</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Invoice No.</td>
+                        <td className="py-1.5 px-3 text-slate-600">INV-1002</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Invoice number</td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">F</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Description</td>
+                        <td className="py-1.5 px-3 text-slate-600 font-sans" dir="auto">طلب بضاعة</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Order details</td>
+                      </tr>
+                      <tr className="bg-white">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">G</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Amount</td>
+                        <td className="py-1.5 px-3 text-slate-900 font-bold">10000000</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Total order amount</td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">H</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Payment Option</td>
+                        <td className="py-1.5 px-3 text-slate-700">Partial Payment</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Full / Partial / Installments</td>
+                      </tr>
+                      <tr className="bg-white">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">I</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Down Payment</td>
+                        <td className="py-1.5 px-3 text-emerald-700 font-bold">3000000</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Paid amount (logged to Cashflow)</td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">J</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Unpaid Amount</td>
+                        <td className="py-1.5 px-3 text-rose-700 font-bold">7000000</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Added to Client Remining amount</td>
+                      </tr>
+                      <tr className="bg-white">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">K</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Cashflow Ref</td>
+                        <td className="py-1.5 px-3 text-slate-600">D2405</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Cashflow entry ref number</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 3. Client Sheet */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 bg-emerald-700 text-white text-[11px] font-bold rounded-md">
+                    Sheet 3: Client / Clients
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    Contains clients directory &amp; automatically updates <strong>Remining amount</strong> and <strong>Date</strong>
+                  </span>
+                </div>
+                <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-emerald-800 text-white font-bold">
+                      <tr>
+                        <th className="py-2 px-3">Col</th>
+                        <th className="py-2 px-3">Header</th>
+                        <th className="py-2 px-3">Example</th>
+                        <th className="py-2 px-3">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-mono">
+                      <tr className="bg-white">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">A</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Client Code</td>
+                        <td className="py-1.5 px-3 text-slate-600">C04</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Unique client identifier</td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">B</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Client Name</td>
+                        <td className="py-1.5 px-3 text-slate-600" dir="auto">الاماسي</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Client / Company name</td>
+                      </tr>
+                      <tr className="bg-white">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">C</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Phone Number</td>
+                        <td className="py-1.5 px-3 text-slate-600">0912345678</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Contact phone</td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">D</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Area</td>
+                        <td className="py-1.5 px-3 text-slate-600" dir="auto">الخرطوم</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">City / District</td>
+                      </tr>
+                      <tr className="bg-emerald-50">
+                        <td className="py-1.5 px-3 font-bold text-emerald-800">E</td>
+                        <td className="py-1.5 px-3 font-bold text-emerald-900">Remining amount</td>
+                        <td className="py-1.5 px-3 text-rose-700 font-bold">78479942</td>
+                        <td className="py-1.5 px-3 font-sans text-emerald-950 font-semibold">
+                          Auto-updates on Orders (+unpaid) and Payments (-cashflow in)
+                        </td>
+                      </tr>
+                      <tr className="bg-white">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">F</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Date</td>
+                        <td className="py-1.5 px-3 text-slate-600">2026-11-11</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Last updated date of client debt</td>
+                      </tr>
+                      <tr className="bg-slate-50">
+                        <td className="py-1.5 px-3 font-bold text-slate-500">G</td>
+                        <td className="py-1.5 px-3 font-bold text-slate-800">Email</td>
+                        <td className="py-1.5 px-3 text-slate-600">client@example.com</td>
+                        <td className="py-1.5 px-3 font-sans text-slate-600">Email address</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

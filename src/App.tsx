@@ -10,6 +10,7 @@ import { NewTransactionForm } from './components/NewTransactionForm';
 import { SubmittedTransactionsView } from './components/SubmittedTransactionsView';
 import { MakeAnOrderView } from './components/MakeAnOrderView';
 import { ClientsView } from './components/ClientsView';
+import { AppsScriptModal } from './components/AppsScriptModal';
 
 const TreasuryContent: React.FC = () => {
   const { currentTab, sheetConfig } = useTreasury();
@@ -26,6 +27,9 @@ const TreasuryContent: React.FC = () => {
         {(currentTab === 'make-order' || currentTab === 'sales') && <MakeAnOrderView />}
         {currentTab === 'clients' && <ClientsView />}
       </main>
+
+      {/* Settings Modal */}
+      <AppsScriptModal />
 
       {/* Clean Minimal Footer */}
       <footer className="w-full border-t border-slate-200/80 bg-white/70 py-4 px-6 text-center text-xs text-slate-500">

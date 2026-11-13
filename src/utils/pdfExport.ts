@@ -1,8 +1,8 @@
 import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
 
-export const COMPANY_NAME_AR = 'شركة استاذ بريم';
-export const COMPANY_NAME_EN = 'Ostabrem Company';
+export const COMPANY_NAME_AR = 'شركة أستاذ يبرم';
+export const COMPANY_NAME_EN = 'Ostath Yabrom Company';
 
 export interface PDFExportOptions {
   filename: string;
