@@ -369,7 +369,6 @@ export const SubmittedTransactionsView: React.FC = () => {
                   <table className="w-full text-left text-xs sm:text-sm border-collapse">
                     <thead>
                       <tr className="border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-white">
-                        <th className="py-3 px-4">TIMESTAMP</th>
                         <th className="py-3 px-3">DATE</th>
                         <th className="py-3 px-3">CLIENT CODE</th>
                         <th className="py-3 px-4">CLIENT NAME</th>
@@ -386,11 +385,6 @@ export const SubmittedTransactionsView: React.FC = () => {
                         const isInflow = tx.type === 'Inflow' || (tx.type as string) === 'in';
                         return (
                           <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors group">
-                            {/* Exact Timestamp */}
-                            <td className="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
-                              {tx.timestamp || tx.createdAt?.replace('T', ' ').substring(0, 19)}
-                            </td>
-
                             {/* Date */}
                             <td className="py-3 px-3 font-mono text-xs text-slate-700 whitespace-nowrap">
                               {tx.date}
