@@ -219,12 +219,20 @@ export const ClientsView: React.FC = () => {
     }
   };
 
+  const getLocalTodayStr = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
   // Download Clean Clients Directory PDF (Summary Cards + Directory Table)
   const handleDownloadClientsPdf = async () => {
     if (!clientsPrintRef.current) return;
     setIsExportingPdf(true);
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getLocalTodayStr();
       const filename = formatPdfFilename('Clients_Directory', todayStr);
       await exportElementToPDF(clientsPrintRef.current, {
         filename,
@@ -362,7 +370,7 @@ export const ClientsView: React.FC = () => {
               <span className="font-bold text-slate-700">تقرير دليل العملاء وأرصدة المديونية</span>
             </div>
             <div className="font-mono text-slate-500 font-semibold">
-              التاريخ: {new Date().toISOString().split('T')[0]}
+              التاريخ: {getLocalTodayStr()}
             </div>
           </div>
 
@@ -479,9 +487,9 @@ export const ClientsView: React.FC = () => {
                   <tr>
                     <th className="py-3 px-4">Client Code</th>
                     <th className="py-3 px-4">Client Name</th>
+                    <th className="py-3 px-4 text-right">Total Remining</th>
                     <th className="py-3 px-4">Phone Number</th>
                     <th className="py-3 px-4">Area</th>
-                    <th className="py-3 px-4 text-right">Total Remining</th>
                     <th className="py-3 px-4">Email</th>
                     <th className="py-3 px-4 text-center" data-html2canvas-ignore="true">Actions</th>
                   </tr>
@@ -510,6 +518,18 @@ export const ClientsView: React.FC = () => {
                             {client.name}
                           </td>
 
+                          {/* Total Remining */}
+                          <td className="py-3 px-4 text-right font-mono font-bold">
+                            {remainingDebt > 0 ? (
+                              <span className="text-rose-600 font-extrabold">
+                                {remainingDebt.toLocaleString('en-US')}{' '}
+                                <span className="text-[10px] text-slate-400 font-normal">SDG</span>
+                              </span>
+                            ) : (
+                              <span className="text-emerald-700 font-medium">0 SDG</span>
+                            )}
+                          </td>
+
                           {/* Phone Number */}
                           <td className="py-3 px-4 text-slate-600 font-mono text-xs">
                             {client.phone ? (
@@ -531,18 +551,6 @@ export const ClientsView: React.FC = () => {
                               </span>
                             ) : (
                               <span className="text-slate-300">-</span>
-                            )}
-                          </td>
-
-                          {/* Total Remining */}
-                          <td className="py-3 px-4 text-right font-mono font-bold">
-                            {remainingDebt > 0 ? (
-                              <span className="text-rose-600 font-extrabold">
-                                {remainingDebt.toLocaleString('en-US')}{' '}
-                                <span className="text-[10px] text-slate-400 font-normal">SDG</span>
-                              </span>
-                            ) : (
-                              <span className="text-emerald-700 font-medium">0 SDG</span>
                             )}
                           </td>
 
@@ -585,6 +593,25 @@ export const ClientsView: React.FC = () => {
                     })
                   )}
                 </tbody>
+                {filteredClients.length > 0 && (
+                  <tfoot>
+                    <tr className="bg-slate-100/90 font-bold border-t-2 border-[#284742]/30 text-slate-900 text-xs sm:text-sm">
+                      <td colSpan={2} className="py-3 px-4 font-extrabold text-[#284742]">
+                        Total ({filteredClients.length} Clients)
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-extrabold text-rose-700">
+                        {filteredClients
+                          .reduce((sum, c) => sum + (c.remaining || 0), 0)
+                          .toLocaleString('en-US')}{' '}
+                        <span className="text-[10px] font-semibold text-slate-500">
+                          {sheetConfig.currency}
+                        </span>
+                      </td>
+                      <td colSpan={3} className="py-3 px-4" />
+                      <td className="py-3 px-4" data-html2canvas-ignore="true" />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </div>
@@ -596,7 +623,7 @@ export const ClientsView: React.FC = () => {
             dir="rtl"
           >
             <span>{COMPANY_NAME_AR} &bull; {COMPANY_NAME_EN} &bull; تقرير دليل العملاء والمديونيات المستحقة</span>
-            <span>تاريخ التقرير: {new Date().toISOString().split('T')[0]}</span>
+            <span>تاريخ التقرير: {getLocalTodayStr()}</span>
           </div>
         </div>
         {/* End Printable Section Ref */}

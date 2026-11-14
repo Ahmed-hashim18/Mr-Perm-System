@@ -7,6 +7,9 @@ import {
   CheckCircle2,
   FileSpreadsheet,
   Building2,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
 } from 'lucide-react';
 import { useTreasury } from '../context/TreasuryContext';
 import {
@@ -908,6 +911,67 @@ export const ReportsView: React.FC = () => {
               </div>
               <div className="sm:ml-auto text-xs font-bold text-slate-500">
                 {snapshotRows.length} Records in Snapshot
+              </div>
+            </div>
+
+            {/* First-page-only 3 Summary Cards for Selected Duration */}
+            <div className="pdf-summary-grid grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4 mb-4">
+              <div className="p-3 sm:p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 flex items-center justify-between gap-2 min-w-0">
+                <div className="min-w-0">
+                  <span className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                    Total Inflow
+                  </span>
+                  <p className="text-base sm:text-lg font-extrabold font-mono text-emerald-800 mt-1 break-words">
+                    +{totalCashIn.toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    <span className="text-[10px] sm:text-xs font-sans">SDG</span>
+                  </p>
+                </div>
+                <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl shrink-0">
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
+              </div>
+
+              <div className="p-3 sm:p-4 bg-rose-50/70 rounded-2xl border border-rose-200/80 flex items-center justify-between gap-2 min-w-0">
+                <div className="min-w-0">
+                  <span className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-rose-700">
+                    Total Outflow
+                  </span>
+                  <p className="text-base sm:text-lg font-extrabold font-mono text-rose-800 mt-1 break-words">
+                    -{totalCashOut.toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    <span className="text-[10px] sm:text-xs font-sans">SDG</span>
+                  </p>
+                </div>
+                <div className="p-2 bg-rose-100 text-rose-700 rounded-xl shrink-0">
+                  <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
+              </div>
+
+              <div className="p-3 sm:p-4 bg-[#284742]/5 rounded-2xl border border-[#284742]/20 flex items-center justify-between gap-2 min-w-0">
+                <div className="min-w-0">
+                  <span className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#284742]">
+                    Current Treasury Balance
+                  </span>
+                  <p
+                    className={`text-base sm:text-lg font-extrabold font-mono mt-1 break-words ${
+                      totalCashIn - totalCashOut < 0 ? 'text-rose-700' : 'text-slate-900'
+                    }`}
+                  >
+                    {(totalCashIn - totalCashOut).toLocaleString('en-US', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    <span className="text-[10px] sm:text-xs font-sans font-bold text-slate-500">SDG</span>
+                  </p>
+                </div>
+                <div className="p-2 bg-[#284742]/10 text-[#284742] rounded-xl shrink-0">
+                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
               </div>
             </div>
 
