@@ -7,21 +7,22 @@ import {
   Phone,
   MapPin,
   Mail,
-  ShoppingBag,
   CheckCircle2,
   AlertCircle,
   Hash,
   User,
   X,
   Save,
-  DollarSign,
-  ArrowUpDown,
-  Filter,
   Download,
 } from 'lucide-react';
 import { useTreasury } from '../context/TreasuryContext';
 import { ClientItem } from '../types/treasury';
-import { exportElementToPDF, formatPdfFilename, COMPANY_NAME_AR } from '../utils/pdfExport';
+import {
+  exportElementToPDF,
+  formatPdfFilename,
+  COMPANY_NAME_AR,
+  COMPANY_NAME_EN,
+} from '../utils/pdfExport';
 
 function normalizeText(text: string): string {
   return text
@@ -248,12 +249,10 @@ export const ClientsView: React.FC = () => {
   // Filtered & Sorted Clients
   const filteredClients = clients
     .filter(c => {
-      // Debt filter
       const debt = c.remaining || 0;
       if (filterType === 'with-debt' && debt <= 0) return false;
       if (filterType === 'settled' && debt > 0) return false;
 
-      // Search query
       if (!searchQuery) return true;
       const q = normalizeText(searchQuery);
       return (
@@ -271,30 +270,29 @@ export const ClientsView: React.FC = () => {
       if (sortBy === 'name') {
         return a.name.localeCompare(b.name, 'ar');
       }
-      // default: code numerical order
       const numA = parseInt(a.code.replace(/\D/g, '') || '0', 10);
       const numB = parseInt(b.code.replace(/\D/g, '') || '0', 10);
       return numA - numB;
     });
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-4 space-y-6">
+    <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 py-4 space-y-4 sm:space-y-6">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-emerald-800 shadow-sm animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-emerald-600 text-white rounded-xl">
+        <div className="p-3.5 sm:p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-emerald-800 shadow-sm animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-1.5 bg-emerald-600 text-white rounded-xl shrink-0">
               <CheckCircle2 className="w-4 h-4" />
             </div>
-            <div>
-              <p className="font-semibold text-sm">{toastMessage}</p>
+            <div className="min-w-0">
+              <p className="font-semibold text-sm truncate">{toastMessage}</p>
               <p className="text-xs text-emerald-600">Updated in Clients sheet</p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => setToastMessage(null)}
-            className="text-xs font-bold text-emerald-700 hover:text-emerald-950 cursor-pointer"
+            className="text-xs font-bold text-emerald-700 hover:text-emerald-950 min-h-[40px] px-2 shrink-0 cursor-pointer"
           >
             Dismiss
           </button>
@@ -302,33 +300,33 @@ export const ClientsView: React.FC = () => {
       )}
 
       {/* Main Container Card */}
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 sm:p-8">
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 sm:p-6 md:p-8">
         {/* Header & Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 sm:pb-6 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-[#284742] text-white rounded-2xl shadow-xs">
-                <Users className="w-6 h-6" />
+              <div className="p-2.5 bg-[#284742] text-white rounded-2xl shadow-xs shrink-0">
+                <Users className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
                   Clients Directory
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Synchronized with Google Sheet <strong>Clients</strong> tab &bull; Client Code &bull; Balances &bull; Contact Info
+                  Synchronized with Google Sheet <strong>Clients</strong> tab &bull; Client Code &bull; Balances
                 </p>
               </div>
             </div>
           </div>
 
           {/* Header Action Buttons */}
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
             {/* Download PDF Button */}
             <button
               type="button"
               disabled={isExportingPdf || isSyncing}
               onClick={handleDownloadClientsPdf}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-[#284742]/10 hover:bg-[#284742]/20 text-[#284742] active:scale-98 rounded-2xl text-xs sm:text-sm font-bold shadow-2xs transition-all disabled:opacity-50 cursor-pointer"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 min-h-[42px] bg-[#284742]/10 hover:bg-[#284742]/20 text-[#284742] active:scale-98 rounded-2xl text-xs sm:text-sm font-bold shadow-2xs transition-all disabled:opacity-50 cursor-pointer"
               title="Download clean PDF report with 3 summary cards and client directory"
             >
               <Download className={`w-4 h-4 ${isExportingPdf ? 'animate-bounce' : ''}`} />
@@ -339,7 +337,7 @@ export const ClientsView: React.FC = () => {
             <button
               type="button"
               onClick={handleOpenAddModal}
-              className="flex items-center justify-center gap-2 px-5 py-3 bg-[#284742] hover:bg-[#1e3632] active:scale-98 text-white rounded-2xl text-sm font-bold shadow-md shadow-[#284742]/15 transition-all cursor-pointer"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 min-h-[42px] bg-[#284742] hover:bg-[#1e3632] active:scale-98 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md shadow-[#284742]/15 transition-all cursor-pointer"
             >
               <UserPlus className="w-4 h-4" />
               <span>Create New Client</span>
@@ -350,11 +348,16 @@ export const ClientsView: React.FC = () => {
         {/* Printable Section Ref for PDF export */}
         <div ref={clientsPrintRef} className="pt-2">
           {/* PDF Report Branding Header */}
-          <div className="mb-4 pb-3 border-b border-slate-200 flex items-center justify-between text-xs" dir="rtl">
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-base sm:text-lg text-[#1b3832] tracking-tight bg-[#284742]/10 border border-[#284742]/20 px-3 py-1 rounded-xl shadow-2xs inline-flex items-center gap-1.5">
+          <div
+            className="pdf-company-header pdf-report-header mb-4 pb-3 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2 text-xs"
+            dir="rtl"
+          >
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-extrabold text-sm sm:text-lg text-[#1b3832] tracking-tight bg-[#284742]/10 border border-[#284742]/20 px-3 py-1 rounded-xl shadow-2xs inline-flex items-center gap-1.5">
                 {COMPANY_NAME_AR}
               </span>
+              <span className="text-slate-400">&bull;</span>
+              <span className="font-semibold text-slate-600">{COMPANY_NAME_EN}</span>
               <span className="text-slate-400">&bull;</span>
               <span className="font-bold text-slate-700">تقرير دليل العملاء وأرصدة المديونية</span>
             </div>
@@ -363,253 +366,260 @@ export const ClientsView: React.FC = () => {
             </div>
           </div>
 
-        {/* Stats Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-6">
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              TOTAL REGISTERED CLIENTS
-            </span>
-            <p className="text-2xl font-extrabold text-slate-900 mt-1">
-              {totalClientsCount}{' '}
-              <span className="text-xs font-semibold text-slate-400">Clients</span>
-            </p>
-          </div>
-
-          <div className="p-4 bg-amber-50/70 rounded-2xl border border-amber-200/80">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
-              TOTAL REMAINING DEBT (ALL CLIENTS)
-            </span>
-            <p className="text-2xl font-extrabold text-amber-950 mt-1">
-              {totalOutstandingDebt.toLocaleString('en-US')}{' '}
-              <span className="text-xs font-bold text-amber-700">{sheetConfig.currency}</span>
-            </p>
-          </div>
-
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              OUTSTANDING VS SETTLED
-            </span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-xl font-extrabold text-rose-600">
-                {clientsWithDebtCount} owing
+          {/* Stats Summary Cards */}
+          <div className="pdf-summary-grid grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 my-4 sm:my-6">
+            <div className="p-3.5 sm:p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                TOTAL REGISTERED CLIENTS
               </span>
-              <span className="text-slate-300">&bull;</span>
-              <span className="text-sm font-bold text-emerald-600">
-                {totalClientsCount - clientsWithDebtCount} settled
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Search & Filter Bar */}
-        <div data-html2canvas-ignore="true" className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6 pt-2">
-          {/* Search Input */}
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search by client code, name, phone, or area..."
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
-            />
-          </div>
-
-          {/* Filters & Sorting */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Status Segment */}
-            <div className="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-semibold text-slate-600">
-              <button
-                type="button"
-                onClick={() => setFilterType('all')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  filterType === 'all' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'
-                }`}
-              >
-                All ({totalClientsCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterType('with-debt')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  filterType === 'with-debt'
-                    ? 'bg-amber-100 text-amber-900 shadow-2xs font-bold'
-                    : 'hover:text-slate-900'
-                }`}
-              >
-                Owing ({clientsWithDebtCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterType('settled')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  filterType === 'settled'
-                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                    : 'hover:text-slate-900'
-                }`}
-              >
-                Settled
-              </button>
+              <p className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1">
+                {totalClientsCount}{' '}
+                <span className="text-xs font-semibold text-slate-400">Clients</span>
+              </p>
             </div>
 
-            {/* Sort Dropdown */}
-            <select
-              value={sortBy}
-              onChange={e => setSortBy(e.target.value as any)}
-              className="px-3 py-2 bg-slate-100 border border-transparent rounded-xl text-xs font-semibold text-slate-700 cursor-pointer focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
-            >
-              <option value="code">Sort by Code (C01...)</option>
-              <option value="debt-desc">Highest Debt First</option>
-              <option value="name">Sort by Name</option>
-            </select>
-          </div>
-        </div>
+            <div className="p-3.5 sm:p-4 bg-amber-50/70 rounded-2xl border border-amber-200/80">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                TOTAL REMAINING DEBT (ALL CLIENTS)
+              </span>
+              <p className="text-xl sm:text-2xl font-extrabold text-amber-950 mt-1">
+                {totalOutstandingDebt.toLocaleString('en-US')}{' '}
+                <span className="text-xs font-bold text-amber-700">{sheetConfig.currency}</span>
+              </p>
+            </div>
 
-        {/* Clients Directory Table */}
-        <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-[#284742] text-white text-[11px] font-bold uppercase tracking-wider">
-                <tr>
-                  <th className="py-3 px-4">Client Code</th>
-                  <th className="py-3 px-4">Client Name</th>
-                  <th className="py-3 px-4">Phone Number</th>
-                  <th className="py-3 px-4">Area</th>
-                  <th className="py-3 px-4 text-right">Total Remining</th>
-                  <th className="py-3 px-4">Email</th>
-                  <th className="py-3 px-4 text-center" data-html2canvas-ignore="true">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {filteredClients.length === 0 ? (
+            <div className="p-3.5 sm:p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                OUTSTANDING VS SETTLED
+              </span>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-lg sm:text-xl font-extrabold text-rose-600">
+                  {clientsWithDebtCount} owing
+                </span>
+                <span className="text-slate-300">&bull;</span>
+                <span className="text-sm font-bold text-emerald-600">
+                  {totalClientsCount - clientsWithDebtCount} settled
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Search & Filter Bar */}
+          <div
+            data-html2canvas-ignore="true"
+            className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-5 sm:mb-6 pt-1"
+          >
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-0">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search by client code, name, phone, or area..."
+                className="w-full pl-10 pr-4 py-2.5 min-h-[40px] bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
+              />
+            </div>
+
+            {/* Filters & Sorting */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Status Segment */}
+              <div className="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-semibold text-slate-600">
+                <button
+                  type="button"
+                  onClick={() => setFilterType('all')}
+                  className={`px-3 py-1.5 min-h-[34px] rounded-lg transition-all cursor-pointer ${
+                    filterType === 'all' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'
+                  }`}
+                >
+                  All ({totalClientsCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterType('with-debt')}
+                  className={`px-3 py-1.5 min-h-[34px] rounded-lg transition-all cursor-pointer ${
+                    filterType === 'with-debt'
+                      ? 'bg-amber-100 text-amber-900 shadow-2xs font-bold'
+                      : 'hover:text-slate-900'
+                  }`}
+                >
+                  Owing ({clientsWithDebtCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterType('settled')}
+                  className={`px-3 py-1.5 min-h-[34px] rounded-lg transition-all cursor-pointer ${
+                    filterType === 'settled'
+                      ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                      : 'hover:text-slate-900'
+                  }`}
+                >
+                  Settled
+                </button>
+              </div>
+
+              {/* Sort Dropdown */}
+              <select
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value as 'code' | 'name' | 'debt-desc')}
+                className="px-3 py-2 min-h-[40px] bg-slate-100 border border-transparent rounded-xl text-xs font-semibold text-slate-700 cursor-pointer focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
+              >
+                <option value="code">Sort by Code (C01...)</option>
+                <option value="debt-desc">Highest Debt First</option>
+                <option value="name">Sort by Name</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Clients Directory Table wrapped safely in overflow-x-auto */}
+          <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[680px] text-left text-xs sm:text-sm border-collapse">
+                <thead className="bg-[#284742] text-white text-[11px] font-bold uppercase tracking-wider">
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-slate-400 text-xs">
-                      No clients matched your search or filter.
-                    </td>
+                    <th className="py-3 px-4">Client Code</th>
+                    <th className="py-3 px-4">Client Name</th>
+                    <th className="py-3 px-4">Phone Number</th>
+                    <th className="py-3 px-4">Area</th>
+                    <th className="py-3 px-4 text-right">Total Remining</th>
+                    <th className="py-3 px-4">Email</th>
+                    <th className="py-3 px-4 text-center" data-html2canvas-ignore="true">Actions</th>
                   </tr>
-                ) : (
-                  filteredClients.map(client => {
-                    const remainingDebt = client.remaining || 0;
-                    return (
-                      <tr key={client.code} className="hover:bg-slate-50/80 transition-colors">
-                        {/* Client Code */}
-                        <td className="py-3.5 px-4 font-mono font-bold text-[#284742]">
-                          <span className="px-2.5 py-1 bg-[#284742]/10 rounded-lg">
-                            {client.code}
-                          </span>
-                        </td>
-
-                        {/* Client Name */}
-                        <td className="py-3.5 px-4 font-bold text-slate-900" dir="auto">
-                          {client.name}
-                        </td>
-
-                        {/* Phone Number */}
-                        <td className="py-3.5 px-4 text-slate-600 font-mono text-xs">
-                          {client.phone ? (
-                            <span className="inline-flex items-center gap-1">
-                              <Phone className="w-3 h-3 text-slate-400" />
-                              <span>{client.phone}</span>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {filteredClients.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-10 text-center text-slate-400 text-xs">
+                        No clients matched your search or filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredClients.map(client => {
+                      const remainingDebt = client.remaining || 0;
+                      return (
+                        <tr key={client.code} className="hover:bg-slate-50/80 transition-colors">
+                          {/* Client Code */}
+                          <td className="py-3 px-4 font-mono font-bold text-[#284742]">
+                            <span className="px-2.5 py-1 bg-[#284742]/10 rounded-lg">
+                              {client.code}
                             </span>
-                          ) : (
-                            <span className="text-slate-300">-</span>
-                          )}
-                        </td>
+                          </td>
 
-                        {/* Area */}
-                        <td className="py-3.5 px-4 text-slate-600" dir="auto">
-                          {client.area ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-xs">
-                              <MapPin className="w-3 h-3 text-slate-400" />
-                              <span>{client.area}</span>
-                            </span>
-                          ) : (
-                            <span className="text-slate-300">-</span>
-                          )}
-                        </td>
+                          {/* Client Name */}
+                          <td className="py-3 px-4 font-bold text-slate-900" dir="auto">
+                            {client.name}
+                          </td>
 
-                        {/* Total Remining */}
-                        <td className="py-3.5 px-4 text-right font-mono font-bold">
-                          {remainingDebt > 0 ? (
-                            <span className="text-rose-600 font-extrabold">
-                              {remainingDebt.toLocaleString('en-US')}{' '}
-                              <span className="text-[10px] text-slate-400 font-normal">SDG</span>
-                            </span>
-                          ) : (
-                            <span className="text-emerald-700 font-medium">0 SDG</span>
-                          )}
-                        </td>
+                          {/* Phone Number */}
+                          <td className="py-3 px-4 text-slate-600 font-mono text-xs">
+                            {client.phone ? (
+                              <span className="inline-flex items-center gap-1">
+                                <Phone className="w-3 h-3 text-slate-400" />
+                                <span>{client.phone}</span>
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">-</span>
+                            )}
+                          </td>
 
-                        {/* Email */}
-                        <td className="py-3.5 px-4 text-slate-500 text-xs">
-                          {client.email ? (
-                            <span className="inline-flex items-center gap-1">
-                              <Mail className="w-3 h-3 text-slate-400" />
-                              <span>{client.email}</span>
-                            </span>
-                          ) : (
-                            <span className="text-slate-300">-</span>
-                          )}
-                        </td>
+                          {/* Area */}
+                          <td className="py-3 px-4 text-slate-600" dir="auto">
+                            {client.area ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-xs">
+                                <MapPin className="w-3 h-3 text-slate-400" />
+                                <span>{client.area}</span>
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">-</span>
+                            )}
+                          </td>
 
-                        {/* Actions */}
-                        <td className="py-3.5 px-4 text-center" data-html2canvas-ignore="true">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditModal(client)}
-                              className="p-1.5 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-lg transition-colors cursor-pointer"
-                              title="Modify Client"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
+                          {/* Total Remining */}
+                          <td className="py-3 px-4 text-right font-mono font-bold">
+                            {remainingDebt > 0 ? (
+                              <span className="text-rose-600 font-extrabold">
+                                {remainingDebt.toLocaleString('en-US')}{' '}
+                                <span className="text-[10px] text-slate-400 font-normal">SDG</span>
+                              </span>
+                            ) : (
+                              <span className="text-emerald-700 font-medium">0 SDG</span>
+                            )}
+                          </td>
 
-                            <button
-                              type="button"
-                              onClick={() => setCurrentTab('make-order')}
-                              className="px-2 py-1 bg-[#284742]/10 hover:bg-[#284742] text-[#284742] hover:text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
-                              title="Create Order for this Client"
-                            >
-                              Order
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                          {/* Email */}
+                          <td className="py-3 px-4 text-slate-500 text-xs">
+                            {client.email ? (
+                              <span className="inline-flex items-center gap-1">
+                                <Mail className="w-3 h-3 text-slate-400" />
+                                <span>{client.email}</span>
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">-</span>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-3 px-4 text-center" data-html2canvas-ignore="true">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditModal(client)}
+                                className="min-w-[36px] min-h-[36px] flex items-center justify-center hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-lg transition-colors cursor-pointer"
+                                title="Modify Client"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setCurrentTab('make-order')}
+                                className="px-2.5 py-1.5 min-h-[36px] bg-[#284742]/10 hover:bg-[#284742] text-[#284742] hover:text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                title="Create Order for this Client"
+                              >
+                                Order
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* PDF Report Footer */}
+          <div
+            data-pdf-static-footer="true"
+            className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2 text-[11px] text-slate-400 font-sans"
+            dir="rtl"
+          >
+            <span>{COMPANY_NAME_AR} &bull; {COMPANY_NAME_EN} &bull; تقرير دليل العملاء والمديونيات المستحقة</span>
+            <span>تاريخ التقرير: {new Date().toISOString().split('T')[0]}</span>
           </div>
         </div>
-
-        {/* PDF Report Footer */}
-        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-sans" dir="rtl">
-          <span>{COMPANY_NAME_AR} &bull; تقرير دليل العملاء والمديونيات المستحقة</span>
-          <span>تاريخ التقرير: {new Date().toISOString().split('T')[0]}</span>
-        </div>
+        {/* End Printable Section Ref */}
       </div>
-      {/* End Printable Section Ref */}
-    </div>
 
       {/* CREATE NEW CLIENT MODAL */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-[#284742] text-white rounded-xl">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-8 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 my-auto">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5 sm:mb-6">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 bg-[#284742] text-white rounded-xl shrink-0">
                   <UserPlus className="w-5 h-5" />
                 </div>
-                <div>
-                  <h3 className="font-extrabold text-xl text-slate-900">Create New Client</h3>
+                <div className="min-w-0">
+                  <h3 className="font-extrabold text-lg sm:text-xl text-slate-900">Create New Client</h3>
                   <p className="text-xs text-slate-500">Auto-detected next code from sheet &bull; Saves to Clients tab</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
+                className="min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -623,7 +633,7 @@ export const ClientsView: React.FC = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Auto-detected Client Code */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
@@ -631,7 +641,7 @@ export const ClientsView: React.FC = () => {
                       Client Code
                     </label>
                     <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                      {isFetchingCode ? 'Fetching from sheet...' : 'Auto from sheet'}
+                      {isFetchingCode ? 'Fetching...' : 'Auto from sheet'}
                     </span>
                   </div>
                   <div className="relative">
@@ -646,7 +656,7 @@ export const ClientsView: React.FC = () => {
                         setNewCode(e.target.value.toUpperCase());
                       }}
                       placeholder="e.g. C33"
-                      className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border rounded-xl text-sm font-mono font-bold focus:bg-white focus:outline-none focus:ring-2 ${
+                      className={`w-full pl-10 pr-4 py-2.5 min-h-[42px] bg-slate-50 border rounded-xl text-sm font-mono font-bold focus:bg-white focus:outline-none focus:ring-2 ${
                         isDuplicateCode
                           ? 'border-rose-400 text-rose-700 focus:ring-rose-200'
                           : 'border-slate-200 text-[#284742] focus:ring-[#284742]/20'
@@ -673,7 +683,7 @@ export const ClientsView: React.FC = () => {
                       value={newName}
                       onChange={e => setNewName(e.target.value)}
                       placeholder="e.g. شركة الأمل"
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
+                      className="w-full pl-10 pr-4 py-2.5 min-h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
                       dir="auto"
                     />
                   </div>
@@ -681,7 +691,7 @@ export const ClientsView: React.FC = () => {
               </div>
 
               {/* Phone & Area */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Phone Number
@@ -693,7 +703,7 @@ export const ClientsView: React.FC = () => {
                       value={newPhone}
                       onChange={e => setNewPhone(e.target.value)}
                       placeholder="+249..."
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
+                      className="w-full pl-10 pr-4 py-2.5 min-h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
                     />
                   </div>
                 </div>
@@ -709,7 +719,7 @@ export const ClientsView: React.FC = () => {
                       value={newArea}
                       onChange={e => setNewArea(e.target.value)}
                       placeholder="e.g. الخرطوم, بحري..."
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
+                      className="w-full pl-10 pr-4 py-2.5 min-h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
                       dir="auto"
                     />
                   </div>
@@ -717,7 +727,7 @@ export const ClientsView: React.FC = () => {
               </div>
 
               {/* Email & Initial Total Remining */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Email Address
@@ -729,7 +739,7 @@ export const ClientsView: React.FC = () => {
                       value={newEmail}
                       onChange={e => setNewEmail(e.target.value)}
                       placeholder="client@example.com"
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
+                      className="w-full pl-10 pr-4 py-2.5 min-h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
                     />
                   </div>
                 </div>
@@ -747,7 +757,7 @@ export const ClientsView: React.FC = () => {
                       value={newRemainingStr}
                       onChange={e => handleFormatCommaInput(e.target.value, setNewRemainingStr)}
                       placeholder="0"
-                      className="w-full pl-14 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
+                      className="w-full pl-14 pr-4 py-2.5 min-h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
                     />
                   </div>
                 </div>
@@ -758,14 +768,14 @@ export const ClientsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                  className="px-4 py-2.5 min-h-[40px] text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || isSyncing || isFetchingCode || isDuplicateCode || !trimmedNewCode}
-                  className="px-6 py-2.5 text-xs font-bold text-white bg-[#284742] hover:bg-[#1e3632] rounded-xl shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="px-6 py-2.5 min-h-[40px] text-xs font-bold text-white bg-[#284742] hover:bg-[#1e3632] rounded-xl shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isSubmitting ? 'Adding...' : 'Create & Save to Sheet'}
                 </button>
@@ -777,15 +787,15 @@ export const ClientsView: React.FC = () => {
 
       {/* MODIFY CLIENT MODAL */}
       {editingClient && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-[#284742] text-white rounded-xl">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-8 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 my-auto">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5 sm:mb-6">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 bg-[#284742] text-white rounded-xl shrink-0">
                   <Edit2 className="w-5 h-5" />
                 </div>
-                <div>
-                  <h3 className="font-extrabold text-xl text-slate-900">
+                <div className="min-w-0">
+                  <h3 className="font-extrabold text-lg sm:text-xl text-slate-900 truncate">
                     Modify Client: <span className="font-mono text-[#284742]">{editingClient.code}</span>
                   </h3>
                   <p className="text-xs text-slate-500">Update client contact and location details</p>
@@ -794,7 +804,7 @@ export const ClientsView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setEditingClient(null)}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
+                className="min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -807,13 +817,13 @@ export const ClientsView: React.FC = () => {
                   <span>{editFormError}</span>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Client Code (Read-only badge) */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Client Code
                   </label>
-                  <div className="px-4 py-2.5 bg-slate-100 rounded-xl text-sm font-mono font-bold text-[#284742] border border-slate-200/80">
+                  <div className="px-4 py-2.5 min-h-[42px] bg-slate-100 rounded-xl text-sm font-mono font-bold text-[#284742] border border-slate-200/80 flex items-center">
                     {editingClient.code}
                   </div>
                 </div>
@@ -828,14 +838,14 @@ export const ClientsView: React.FC = () => {
                     required
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
+                    className="w-full px-4 py-2.5 min-h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
                     dir="auto"
                   />
                 </div>
               </div>
 
               {/* Phone & Area */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Phone Number
@@ -845,7 +855,7 @@ export const ClientsView: React.FC = () => {
                     value={editPhone}
                     onChange={e => setEditPhone(e.target.value)}
                     placeholder="+249..."
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
+                    className="w-full px-4 py-2.5 min-h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
                   />
                 </div>
 
@@ -858,14 +868,14 @@ export const ClientsView: React.FC = () => {
                     value={editArea}
                     onChange={e => setEditArea(e.target.value)}
                     placeholder="e.g. الخرطوم..."
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
+                    className="w-full px-4 py-2.5 min-h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
                     dir="auto"
                   />
                 </div>
               </div>
 
               {/* Email & Total Remining */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Email Address
@@ -875,7 +885,7 @@ export const ClientsView: React.FC = () => {
                     value={editEmail}
                     onChange={e => setEditEmail(e.target.value)}
                     placeholder="client@example.com"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
+                    className="w-full px-4 py-2.5 min-h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#284742]/20"
                   />
                 </div>
 
@@ -883,7 +893,7 @@ export const ClientsView: React.FC = () => {
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Remaining Debt
                   </label>
-                  <div className="px-4 py-2.5 bg-slate-100/90 border border-slate-200 rounded-xl text-sm font-mono font-bold text-slate-800 flex items-center justify-between">
+                  <div className="px-4 py-2.5 min-h-[42px] bg-slate-100/90 border border-slate-200 rounded-xl text-sm font-mono font-bold text-slate-800 flex items-center justify-between">
                     <span>{(editingClient.remaining || 0).toLocaleString('en-US')}</span>
                     <span className="text-xs font-bold text-slate-400">{sheetConfig.currency}</span>
                   </div>
@@ -898,14 +908,14 @@ export const ClientsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setEditingClient(null)}
-                  className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                  className="px-4 py-2.5 min-h-[40px] text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || isSyncing}
-                  className="flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-white bg-[#284742] hover:bg-[#1e3632] rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                  className="flex items-center gap-2 px-6 py-2.5 min-h-[40px] text-xs font-bold text-white bg-[#284742] hover:bg-[#1e3632] rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>{isSubmitting ? 'Saving...' : 'Save Changes'}</span>

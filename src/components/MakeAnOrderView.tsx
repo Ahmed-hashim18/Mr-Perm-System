@@ -220,8 +220,8 @@ export const MakeAnOrderView: React.FC = () => {
   // Full: +0 (paid in full)
   const projectedClientRemaining = clientCurrentRemaining + unpaidPortion;
 
-  // Projected treasury balance after down payment inflow
-  const projectedTreasuryBalance = currentBalance + parsedDownPayment;
+  // Projected treasury balance after down payment outflow
+  const projectedTreasuryBalance = currentBalance - parsedDownPayment;
 
   // Auto-fill suggested description if empty
   const applySuggestedDescription = (text: string) => {
@@ -583,9 +583,9 @@ export const MakeAnOrderView: React.FC = () => {
                 </div>
 
                 <div className="text-xs space-y-1.5 pl-0 sm:pl-4 border-t sm:border-t-0 sm:border-l border-amber-200/80 pt-3 sm:pt-0">
-                  <div className="flex justify-between text-emerald-800">
-                    <span className="font-semibold">Paid Now (Cashflow Inflow):</span>
-                    <span className="font-bold">+{parsedDownPayment.toLocaleString('en-US')} SDG</span>
+                  <div className="flex justify-between text-rose-800">
+                    <span className="font-semibold">Paid Now (Cashflow Outflow):</span>
+                    <span className="font-bold">-{parsedDownPayment.toLocaleString('en-US')} SDG</span>
                   </div>
                   <div className="flex justify-between text-amber-900">
                     <span className="font-semibold">Unpaid Portion (Added to Debt):</span>
@@ -687,10 +687,10 @@ export const MakeAnOrderView: React.FC = () => {
                     1. Google Sheet &ldquo;Cashflow&rdquo; Action:
                   </span>
                   {parsedDownPayment > 0 ? (
-                    <p className="text-emerald-700 font-semibold flex items-center gap-1.5">
+                    <p className="text-rose-700 font-semibold flex items-center gap-1.5">
                       <ArrowDownRight className="w-3.5 h-3.5" />
                       <span>
-                        Logs Inflow of <strong>+{parsedDownPayment.toLocaleString('en-US')} SDG</strong> into Cashflow
+                        Logs Outflow of <strong>-{parsedDownPayment.toLocaleString('en-US')} SDG</strong> into Cashflow
                       </span>
                     </p>
                   ) : (

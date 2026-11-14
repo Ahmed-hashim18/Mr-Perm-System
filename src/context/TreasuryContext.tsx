@@ -708,9 +708,9 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       if (actualDownPayment > 0) {
         cashflowLogged = true;
-        // User requested: order down payments/partial payments must start with 'C' (Credit), NOT 'D' (e.g. C31)
+        // User requested: order down payments/partial payments must start with 'C' (Credit) and record as Outflow ('out')
         const refNumber = getNextRefNo('C');
-        const newBal = currentBalance + actualDownPayment;
+        const newBal = currentBalance - actualDownPayment;
 
         const descSuffix = data.description ? ` (${data.description})` : '';
         const txDesc =
@@ -727,11 +727,11 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           clientName: cleanName,
           accountHead: `${cleanName} - ${cleanCode}`,
           refNo: refNumber,
-          type: 'Inflow',
+          type: 'Outflow',
           description: txDesc,
           amount: actualDownPayment,
-          debit: actualDownPayment,
-          credit: null,
+          debit: null,
+          credit: actualDownPayment,
           balance: newBal,
           syncedToSheet: false,
           createdAt: new Date().toISOString(),
@@ -806,7 +806,7 @@ export const TreasuryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       let resultMsg = `Order ${newOrder.invoiceNumber} processed.`;
       if (cashflowLogged) {
-        resultMsg += ` Recorded ${actualDownPayment.toLocaleString()} ${sheetConfig.currency} Inflow in Cashflow.`;
+        resultMsg += ` Recorded ${actualDownPayment.toLocaleString()} ${sheetConfig.currency} Outflow in Cashflow.`;
       }
       if (unpaidPart > 0) {
         resultMsg += ` +${unpaidPart.toLocaleString()} ${sheetConfig.currency} added to client remaining debt.`;

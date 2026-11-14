@@ -549,9 +549,11 @@ function doPost(e) {
         orderRowNum = appendCleanRow(orderSheet, orderRow, 11);
       }
 
-      // 2. Log down payment cleanly to Cashflow (no blank gap row before entry)
+      // 2. Log down payment cleanly to Cashflow as Outflow ('out', credit) by default
       if (cfTx && Number(cfTx.amount) > 0) {
         var cfSheet = getCashflowSheet(ss);
+        var cfTypeRaw = String(cfTx.type || cfTx.sheetType || "out").toLowerCase().trim();
+        var cfSheetType = (cfTypeRaw === "in" || cfTypeRaw === "inflow" || cfTypeRaw === "debit") ? "in" : "out";
         var cfRow = [
           exactTimestamp,
           dateStr,
@@ -559,7 +561,7 @@ function doPost(e) {
           String(cfTx.clientName || oName).trim(),
           cfTx.refNo || cfRef,
           cfTx.description || ("سداد دفعة طلب - فاتورة " + invoiceNo + " - " + oName),
-          "in",
+          cfSheetType,
           Number(cfTx.amount) || 0
         ];
         appendCleanRow(cfSheet, cfRow, 8);

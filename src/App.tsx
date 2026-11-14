@@ -16,12 +16,12 @@ const TreasuryContent: React.FC = () => {
   const { currentTab, sheetConfig } = useTreasury();
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6]/70 text-slate-900 flex flex-col font-sans antialiased">
+    <div className="min-h-screen bg-[#f3f4f6]/70 text-slate-900 flex flex-col font-sans antialiased overflow-x-hidden">
       {/* Top Navigation */}
       <Navbar />
 
       {/* Main Content Area */}
-      <main className="flex-1 pb-16">
+      <main className="flex-1 pb-16 min-w-0">
         {currentTab === 'new-entry' && <NewTransactionForm />}
         {currentTab === 'view-data' && <SubmittedTransactionsView />}
         {(currentTab === 'make-order' || currentTab === 'sales') && <MakeAnOrderView />}
