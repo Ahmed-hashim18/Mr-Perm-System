@@ -14,12 +14,20 @@ export interface PDFExportOptions {
  * Returns formatted standard filename: [Report_Name]_[YYYY-MM-DD].pdf
  * e.g. All_Transactions_2026-11-09.pdf
  */
+function getLocalTodayStr(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export function formatPdfFilename(reportName: string, dateStr?: string): string {
   const cleanName = reportName
     .trim()
     .replace(/\s+/g, '_')
     .replace(/[^a-zA-Z0-9_\-\u0600-\u06FF]/g, '');
-  const date = dateStr || new Date().toISOString().split('T')[0];
+  const date = dateStr || getLocalTodayStr();
   return `${cleanName}_${date}.pdf`;
 }
 
@@ -303,7 +311,7 @@ export async function exportElementToPDF(
     fallbackHeader.style.color = '#334155';
     fallbackHeader.innerHTML = `
       <div style="font-weight:800;color:#284742;font-size:13px;">${COMPANY_NAME_AR} &bull; ${COMPANY_NAME_EN}</div>
-      <div style="font-family:monospace;color:#64748b;">${new Date().toISOString().split('T')[0]}</div>
+      <div style="font-family:monospace;color:#64748b;">${getLocalTodayStr()}</div>
     `;
     clone.insertBefore(fallbackHeader, clone.firstChild);
   }
@@ -318,13 +326,38 @@ export async function exportElementToPDF(
     }
     await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
 
-    const totalContentHeight = Math.ceil(clone.scrollHeight);
-    const cloneRect = clone.getBoundingClientRect();
-
-    // Find primary table & lock column widths so repeated <thead> aligns 1:1 with <tbody>
+    // Find primary table & lock column widths FIRST before measuring height & row bands,
+    // because switching to table-layout: fixed can reflow wrapped text and increase total height.
     const primaryTable = clone.querySelector('table') as HTMLTableElement | null;
     const thead = primaryTable?.querySelector('thead') as HTMLTableSectionElement | null;
     let theadColumnWidths: number[] = [];
+
+    if (primaryTable && thead) {
+      const initialTableRect = primaryTable.getBoundingClientRect();
+      const thList = Array.from(thead.querySelectorAll('th'));
+      theadColumnWidths = thList.map(th => th.getBoundingClientRect().width);
+
+      // Lock column widths on table & th elements before measuring final heights
+      primaryTable.style.tableLayout = 'fixed';
+      primaryTable.style.width = `${Math.round(initialTableRect.width)}px`;
+      thList.forEach((th, idx) => {
+        const w = theadColumnWidths[idx];
+        if (w > 0) {
+          th.style.width = `${w}px`;
+        }
+      });
+
+      // Force reflow and wait one animation frame so row heights & clone.scrollHeight reflect fixed layout
+      void clone.offsetHeight;
+      await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+    }
+
+    const cloneRect = clone.getBoundingClientRect();
+    let totalContentHeight = Math.max(
+      Math.ceil(clone.scrollHeight),
+      Math.ceil(cloneRect.height)
+    );
+
     let theadTop = 0;
     let theadBottom = 0;
     let theadHeight = 0;
@@ -339,21 +372,11 @@ export async function exportElementToPDF(
     if (primaryTable) {
       const tableRect = primaryTable.getBoundingClientRect();
       tableBottom = Math.ceil(tableRect.bottom - cloneRect.top);
+      totalContentHeight = Math.max(totalContentHeight, tableBottom);
 
       if (thead) {
         const thList = Array.from(thead.querySelectorAll('th'));
         theadColumnWidths = thList.map(th => th.getBoundingClientRect().width);
-
-        // Lock column widths on table & th elements before slicing
-        primaryTable.style.tableLayout = 'fixed';
-        primaryTable.style.width = `${Math.round(tableRect.width)}px`;
-        thList.forEach((th, idx) => {
-          const w = theadColumnWidths[idx];
-          if (w > 0) {
-            th.style.width = `${w}px`;
-          }
-        });
-
         const theadRect = thead.getBoundingClientRect();
         theadTop = Math.floor(theadRect.top - cloneRect.top);
         theadBottom = Math.ceil(theadRect.bottom - cloneRect.top);
@@ -365,10 +388,12 @@ export async function exportElementToPDF(
       );
       for (const tr of allRows) {
         const r = tr.getBoundingClientRect();
-        rowBands.push({
-          top: Math.floor(r.top - cloneRect.top),
-          bottom: Math.ceil(r.bottom - cloneRect.top),
-        });
+        const bandTop = Math.floor(r.top - cloneRect.top);
+        const bandBottom = Math.ceil(r.bottom - cloneRect.top);
+        rowBands.push({ top: bandTop, bottom: bandBottom });
+        if (bandBottom > totalContentHeight) {
+          totalContentHeight = bandBottom;
+        }
       }
     }
 
@@ -431,7 +456,7 @@ export async function exportElementToPDF(
     }
 
     const totalPages = slices.length;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalTodayStr();
 
     for (let i = 0; i < totalPages; i++) {
       const slice = slices[i];
@@ -486,7 +511,7 @@ export async function exportElementToPDF(
         bodyGroup.appendChild(tableWrapper);
       }
 
-      // Clipped window viewport shifting `clone` upward
+      // Clipped window viewport shifting `clone` upward without margin-collapsing drift
       const viewport = document.createElement('div');
       viewport.style.width = `${fixedWidthPx}px`;
       viewport.style.height = `${windowHeight}px`;
@@ -494,7 +519,10 @@ export async function exportElementToPDF(
       viewport.style.position = 'relative';
       viewport.style.backgroundColor = '#ffffff';
 
-      clone.style.marginTop = `${-slice.startY}px`;
+      clone.style.position = 'absolute';
+      clone.style.top = `${-slice.startY}px`;
+      clone.style.left = '0';
+      clone.style.marginTop = '0';
       viewport.appendChild(clone);
       bodyGroup.appendChild(viewport);
       pageHost.appendChild(bodyGroup);
@@ -526,6 +554,8 @@ export async function exportElementToPDF(
         backgroundColor: '#ffffff',
         width: fixedWidthPx,
         windowWidth: fixedWidthPx,
+        scrollX: 0,
+        scrollY: 0,
       });
 
       const imgData = pageCanvas.toDataURL('image/jpeg', 0.9);
@@ -547,7 +577,11 @@ export async function exportElementToPDF(
         'FAST'
       );
 
-      // Re-attach clone to sandbox before removing temporary pageHost
+      // Re-attach clone cleanly to sandbox before removing temporary pageHost
+      clone.style.position = 'static';
+      clone.style.top = '';
+      clone.style.left = '';
+      clone.style.marginTop = '0';
       sandbox.appendChild(clone);
       pageHost.remove();
     }

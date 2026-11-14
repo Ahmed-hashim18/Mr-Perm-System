@@ -930,6 +930,7 @@ export async function testAppsScriptConnection(
   try {
     const response = await fetch(url, {
       method: 'GET',
+      cache: 'no-store',
       headers: {
         'Accept': 'application/json',
       },

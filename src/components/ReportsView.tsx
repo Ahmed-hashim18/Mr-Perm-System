@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   Download,
   Printer,
@@ -18,17 +18,76 @@ import {
 
 type ReportTab = 'debt-report' | 'client-ledger' | 'snapshot';
 
+function getLocalDateStr(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function normalizeToISODate(rawDate?: string, fallback?: string): string {
+  const candidates = [rawDate, fallback];
+  for (const cand of candidates) {
+    const str = String(cand || '').trim();
+    if (!str) continue;
+
+    // 1. YYYY-MM-DD or YYYY/MM/DD prefix (handles timestamps like "2026-11-14 13:15:00" or ISO strings)
+    const isoPrefix = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:$|[\sT])/);
+    if (isoPrefix) {
+      const y = isoPrefix[1];
+      const m = isoPrefix[2].padStart(2, '0');
+      const d = isoPrefix[3].padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    // 2. DD/MM/YYYY or DD-MM-YYYY
+    const dmyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:$|[\sT])/);
+    if (dmyMatch) {
+      const p1 = parseInt(dmyMatch[1], 10);
+      const p2 = parseInt(dmyMatch[2], 10);
+      const y = dmyMatch[3];
+      // Default to DD/MM/YYYY unless middle part exceeds 12 (MM/DD/YYYY)
+      const day = p2 > 12 ? p2 : p1;
+      const month = p2 > 12 ? p1 : p2;
+      return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    // 3. Fallback Date parse -> local YYYY-MM-DD
+    const parsed = new Date(str);
+    if (!isNaN(parsed.getTime())) {
+      return getLocalDateStr(parsed);
+    }
+  }
+  return '';
+}
+
 export const ReportsView: React.FC = () => {
-  const { clients, transactions, orders } = useTreasury();
+  const {
+    clients,
+    transactions,
+    orders,
+    syncWithGoogleSheet,
+    isOnline,
+    offlineQueueCount,
+  } = useTreasury();
 
   const [activeReport, setActiveReport] = useState<ReportTab>('debt-report');
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportFeedback, setExportFeedback] = useState<string | null>(null);
 
+  // Sync latest Google Sheet data whenever ReportsView opens (if online & no pending offline queue)
+  useEffect(() => {
+    if (isOnline && (typeof navigator === 'undefined' || navigator.onLine) && offlineQueueCount === 0) {
+      syncWithGoogleSheet().catch(() => {
+        // Ignore background sync errors; cached data remains visible
+      });
+    }
+  }, []);
+
   // -------------------------------------------------------------
   // REPORT 1: CLIENT REPORT / DEBT REPORT (Sheet: "Debt Report")
   // -------------------------------------------------------------
-  const [debtReportDate, setDebtReportDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [debtReportDate, setDebtReportDate] = useState<string>(() => getLocalDateStr());
   const [debtSearch, setDebtSearch] = useState<string>('');
   const debtReportPrintRef = useRef<HTMLDivElement>(null);
 
@@ -124,7 +183,12 @@ export const ReportsView: React.FC = () => {
       });
     }
 
-    rows.sort((a, b) => new Date(a.rawDate).getTime() - new Date(b.rawDate).getTime());
+    rows.sort((a, b) => {
+      const isoA = normalizeToISODate(a.rawDate);
+      const isoB = normalizeToISODate(b.rawDate);
+      if (isoA && isoB) return isoA.localeCompare(isoB);
+      return new Date(a.rawDate).getTime() - new Date(b.rawDate).getTime();
+    });
 
     const isOwner = cCode === 'C01';
     let running = 0;
@@ -165,37 +229,80 @@ export const ReportsView: React.FC = () => {
   // -------------------------------------------------------------
   // REPORT 3: SNAPSHOT REPORT (Sheet: "Snapshot")
   // -------------------------------------------------------------
-  const [snapshotStartDate, setSnapshotStartDate] = useState<string>('2026-09-01');
-  const [snapshotEndDate, setSnapshotEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [snapshotStartDate, setSnapshotStartDate] = useState<string>(() => {
+    let minDate = '2026-09-01';
+    for (const t of transactions) {
+      const d = normalizeToISODate(t.date, t.formattedDate || t.timestamp || t.createdAt);
+      if (d && d < minDate) minDate = d;
+    }
+    return minDate;
+  });
+  const [snapshotEndDate, setSnapshotEndDate] = useState<string>(() => {
+    let maxDate = getLocalDateStr();
+    for (const t of transactions) {
+      const d = normalizeToISODate(t.date, t.formattedDate || t.timestamp || t.createdAt);
+      if (d && d > maxDate) maxDate = d;
+    }
+    return maxDate;
+  });
+  const hasEditedSnapshotStartRef = useRef<boolean>(false);
+  const hasEditedSnapshotEndRef = useRef<boolean>(false);
   const [snapshotSearch, setSnapshotSearch] = useState<string>('');
   const snapshotPrintRef = useRef<HTMLDivElement>(null);
 
-  const snapshotRows = useMemo(() => {
-    const start = snapshotStartDate ? new Date(snapshotStartDate + 'T00:00:00').getTime() : 0;
-    const end = snapshotEndDate ? new Date(snapshotEndDate + 'T23:59:59').getTime() : Infinity;
+  // Keep default Snapshot range inclusive of newly synced transactions unless user manually picked dates
+  useEffect(() => {
+    let minDate = snapshotStartDate;
+    let maxDate = snapshotEndDate;
+    for (const t of transactions) {
+      const d = normalizeToISODate(t.date, t.formattedDate || t.timestamp || t.createdAt);
+      if (!d) continue;
+      if (d < minDate) minDate = d;
+      if (d > maxDate) maxDate = d;
+    }
+    if (!hasEditedSnapshotStartRef.current && minDate < snapshotStartDate) {
+      setSnapshotStartDate(minDate);
+    }
+    if (!hasEditedSnapshotEndRef.current && maxDate > snapshotEndDate) {
+      setSnapshotEndDate(maxDate);
+    }
+  }, [transactions]);
 
+  const snapshotRows = useMemo(() => {
     return transactions
-      .filter(t => {
-        const rawDate = String(t.date || '').trim();
-        if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
-          if (snapshotStartDate && rawDate < snapshotStartDate) return false;
-          if (snapshotEndDate && rawDate > snapshotEndDate) return false;
-          return true;
-        }
-        const tTime = new Date(rawDate).getTime();
-        return !isNaN(tTime) && tTime >= start && tTime <= end;
+      .map((t, index) => ({
+        tx: t,
+        index,
+        isoDate: normalizeToISODate(
+          t.date,
+          t.formattedDate || t.timestamp || t.createdAt
+        ),
+      }))
+      .filter(({ isoDate }) => {
+        if (!isoDate) return true;
+        if (snapshotStartDate && isoDate < snapshotStartDate) return false;
+        if (snapshotEndDate && isoDate > snapshotEndDate) return false;
+        return true;
       })
-      .filter(t => {
+      .filter(({ tx }) => {
         if (!snapshotSearch) return true;
         const q = snapshotSearch.toLowerCase().trim();
         return (
-          (t.clientCode && t.clientCode.toLowerCase().includes(q)) ||
-          (t.clientName && t.clientName.toLowerCase().includes(q)) ||
-          (t.refNo && t.refNo.toLowerCase().includes(q)) ||
-          (t.description && t.description.toLowerCase().includes(q))
+          (tx.clientCode && tx.clientCode.toLowerCase().includes(q)) ||
+          (tx.clientName && tx.clientName.toLowerCase().includes(q)) ||
+          (tx.refNo && tx.refNo.toLowerCase().includes(q)) ||
+          (tx.description && tx.description.toLowerCase().includes(q))
         );
       })
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .sort((a, b) => {
+        if (a.isoDate !== b.isoDate) {
+          return a.isoDate.localeCompare(b.isoDate);
+        }
+        return a.index - b.index;
+      })
+      .map(({ tx, isoDate }) =>
+        isoDate && tx.date !== isoDate ? { ...tx, date: isoDate } : tx
+      );
   }, [transactions, snapshotStartDate, snapshotEndDate, snapshotSearch]);
 
   const { totalCashIn, totalCashOut } = useMemo(() => {
@@ -218,6 +325,19 @@ export const ReportsView: React.FC = () => {
   const handleExportPDF = async (reportType: ReportTab) => {
     setIsExporting(true);
     try {
+      // Sync live data from Google Sheets before rendering PDF so exports are always up-to-date
+      if (isOnline && (typeof navigator === 'undefined' || navigator.onLine) && offlineQueueCount === 0) {
+        try {
+          await syncWithGoogleSheet();
+          await new Promise<void>(resolve => setTimeout(resolve, 120));
+          await new Promise<void>(resolve =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+          );
+        } catch {
+          // Continue exporting current state if network sync fails
+        }
+      }
+
       if (reportType === 'debt-report' && debtReportPrintRef.current) {
         await exportElementToPDF(debtReportPrintRef.current, {
           filename: `Debt_Report_${formattedDebtDate || 'Latest'}`,
@@ -565,7 +685,7 @@ export const ReportsView: React.FC = () => {
                 <span className="font-bold text-slate-700">Client Ledger Report</span>
               </div>
               <span className="font-mono text-slate-500">
-                {new Date().toISOString().split('T')[0]}
+                {getLocalDateStr()}
               </span>
             </div>
 
@@ -714,7 +834,10 @@ export const ReportsView: React.FC = () => {
                 <input
                   type="date"
                   value={snapshotStartDate}
-                  onChange={e => setSnapshotStartDate(e.target.value)}
+                  onChange={e => {
+                    hasEditedSnapshotStartRef.current = true;
+                    setSnapshotStartDate(e.target.value);
+                  }}
                   className="bg-transparent text-xs font-bold text-blue-950 focus:outline-none cursor-pointer w-full sm:w-auto"
                 />
               </div>
@@ -724,7 +847,10 @@ export const ReportsView: React.FC = () => {
                 <input
                   type="date"
                   value={snapshotEndDate}
-                  onChange={e => setSnapshotEndDate(e.target.value)}
+                  onChange={e => {
+                    hasEditedSnapshotEndRef.current = true;
+                    setSnapshotEndDate(e.target.value);
+                  }}
                   className="bg-transparent text-xs font-bold text-blue-950 focus:outline-none cursor-pointer w-full sm:w-auto"
                 />
               </div>
