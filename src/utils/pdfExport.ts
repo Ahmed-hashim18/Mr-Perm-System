@@ -155,6 +155,14 @@ function buildPrintStyleElement(): HTMLStyleElement {
       background-color: #f8fafc !important;
     }
 
+    .pdf-print-clone-root table tbody tr.pdf-day-banner-row {
+      background-color: #e6f0ee !important;
+      border-top: 1.5px solid #284742 !important;
+      border-bottom: 1px solid #cbd5e1 !important;
+      color: #0f172a !important;
+      font-weight: 700 !important;
+    }
+
     .pdf-print-clone-root table td span {
       padding-top: 1px !important;
       padding-bottom: 1px !important;

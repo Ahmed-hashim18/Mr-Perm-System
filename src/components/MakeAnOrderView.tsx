@@ -363,7 +363,7 @@ export const MakeAnOrderView: React.FC = () => {
                   required
                   value={date}
                   onChange={e => setDate(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-sm font-semibold text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
+                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-base md:text-sm font-semibold text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
                 />
               </div>
             </div>
@@ -386,7 +386,7 @@ export const MakeAnOrderView: React.FC = () => {
                   value={invoiceNumber}
                   onChange={e => setInvoiceNumber(e.target.value)}
                   placeholder="e.g. INV-1010"
-                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-sm font-mono font-bold text-slate-900 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
+                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-base md:text-sm font-mono font-bold text-slate-900 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
                 />
               </div>
             </div>
@@ -411,7 +411,7 @@ export const MakeAnOrderView: React.FC = () => {
                   onFocus={() => setShowCodeDropdown(true)}
                   onChange={e => handleCodeChange(e.target.value)}
                   placeholder="e.g. C26, C13, C29..."
-                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-sm font-mono font-bold text-[#284742] transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
+                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-base md:text-sm font-mono font-bold text-[#284742] transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
                 />
               </div>
 
@@ -456,7 +456,7 @@ export const MakeAnOrderView: React.FC = () => {
                   onFocus={() => setShowNameDropdown(true)}
                   onChange={e => handleNameChange(e.target.value)}
                   placeholder="e.g. ميديكال بلص, دان مروي, CDC..."
-                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-sm font-semibold text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
+                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-base md:text-sm font-semibold text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
                   dir="auto"
                 />
               </div>
@@ -611,7 +611,7 @@ export const MakeAnOrderView: React.FC = () => {
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 placeholder="e.g. تم سداد ٣ مليون كاش والباقي أقساط / طلب أدوية ومستلزمات"
-                className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-sm font-medium text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
+                className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-base md:text-sm font-medium text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
                 dir="auto"
               />
             </div>

@@ -342,7 +342,7 @@ export const NewTransactionForm: React.FC = () => {
                   required
                   value={date}
                   onChange={e => setDate(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-sm font-semibold text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
+                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-base md:text-sm font-semibold text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
                 />
               </div>
             </div>
@@ -401,7 +401,7 @@ export const NewTransactionForm: React.FC = () => {
                   onFocus={() => setShowCodeDropdown(true)}
                   onChange={e => handleCodeChange(e.target.value)}
                   placeholder="e.g. C01, C02..."
-                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-sm font-mono font-bold text-[#284742] transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
+                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-base md:text-sm font-mono font-bold text-[#284742] transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
                 />
               </div>
 
@@ -446,7 +446,7 @@ export const NewTransactionForm: React.FC = () => {
                   onFocus={() => setShowNameDropdown(true)}
                   onChange={e => handleNameChange(e.target.value)}
                   placeholder="e.g. أبو عمر, انجي, الرياض..."
-                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-sm font-semibold text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
+                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-base md:text-sm font-semibold text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
                   dir="auto"
                 />
               </div>
@@ -487,7 +487,7 @@ export const NewTransactionForm: React.FC = () => {
                   value={refNo}
                   onChange={e => setRefNo(e.target.value)}
                   placeholder="e.g. C31 or D6"
-                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-sm font-semibold text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
+                  className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-base md:text-sm font-semibold text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
                 />
               </div>
             </div>
@@ -528,7 +528,7 @@ export const NewTransactionForm: React.FC = () => {
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Brief description of the transaction"
-                className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-sm font-medium text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
+                className="w-full pl-11 pr-4 py-3 bg-[#f3f4f6]/80 hover:bg-[#f3f4f6] focus:bg-white border border-transparent focus:border-[#284742] rounded-2xl text-base md:text-sm font-medium text-slate-800 transition-all focus:outline-none focus:ring-3 focus:ring-[#284742]/10"
                 dir="auto"
               />
             </div>
