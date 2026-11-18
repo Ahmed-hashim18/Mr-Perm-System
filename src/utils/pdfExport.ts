@@ -47,6 +47,8 @@ function buildPrintStyleElement(): HTMLStyleElement {
     .pdf-print-clone-root * {
       letter-spacing: normal !important;
       box-sizing: border-box !important;
+      -webkit-text-size-adjust: 100% !important;
+      text-size-adjust: 100% !important;
     }
 
     .pdf-print-clone-root {
@@ -168,14 +170,108 @@ function buildPrintStyleElement(): HTMLStyleElement {
       padding-bottom: 1px !important;
     }
 
-    .pdf-print-clone-root table tfoot tr {
+    .pdf-print-clone-root table tfoot tr,
+    .pdf-print-clone-root table tfoot td {
       background-color: #e6f0ee !important;
       border-top: 2px solid #284742 !important;
       color: #0f172a !important;
       font-weight: 800 !important;
+      font-size: 11px !important;
+      line-height: 1.35 !important;
+      padding: 5px 8px !important;
     }
   `;
   return style;
+}
+
+/**
+ * Strips Tailwind responsive breakpoint prefixes (sm:, md:, lg:, xl:, 2xl:)
+ * inside the cloned print DOM so sandbox measurements on a 390px phone match
+ * html2canvas capture at 780px/960px down to the exact pixel.
+ */
+function stripResponsiveClasses(root: HTMLElement): void {
+  const responsivePrefixRe = /^(sm|md|lg|xl|2xl):/;
+  const elements: Element[] = [root, ...Array.from(root.querySelectorAll('*'))];
+  for (const el of elements) {
+    if (!el.classList || el.classList.length === 0) continue;
+    const toRemove: string[] = [];
+    el.classList.forEach(cls => {
+      if (responsivePrefixRe.test(cls)) {
+        toRemove.push(cls);
+      }
+    });
+    if (toRemove.length > 0) {
+      el.classList.remove(...toRemove);
+    }
+  }
+}
+
+/**
+ * Splits mixed Arabic + Latin text nodes into isolated single-script spans
+ * so html2canvas renders BiDi descriptions (e.g. "رصيد افتتاحي SEP 17")
+ * cleanly without overlapping characters on mobile WebKit.
+ */
+function isolateMixedBidiTextNodes(root: HTMLElement): void {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const targetNodes: Text[] = [];
+
+  let current = walker.nextNode();
+  while (current) {
+    const textNode = current as Text;
+    const val = textNode.nodeValue || '';
+    if (/[\u0600-\u06FF]/.test(val) && /[A-Za-z]/.test(val)) {
+      targetNodes.push(textNode);
+    }
+    current = walker.nextNode();
+  }
+
+  const tokenRe =
+    /([A-Za-z][A-Za-z0-9#\-_./:]*(?:\s+[A-Za-z0-9#\-_./:]+)*)|([\u0600-\u06FF][\u0600-\u06FF\u0660-\u06690-9#\-_./:]*(?:\s+[\u0600-\u06FF][\u0600-\u06FF\u0660-\u06690-9#\-_./:]*)*)/g;
+
+  for (const textNode of targetNodes) {
+    const text = textNode.nodeValue || '';
+    const parent = textNode.parentNode;
+    if (!parent) continue;
+
+    const frag = document.createDocumentFragment();
+    let lastIndex = 0;
+    tokenRe.lastIndex = 0;
+
+    let match: RegExpExecArray | null;
+    while ((match = tokenRe.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        const gap = text.slice(lastIndex, match.index);
+        frag.appendChild(document.createTextNode(gap.replace(/ /g, '\u00A0')));
+      }
+
+      const span = document.createElement('span');
+      span.style.unicodeBidi = 'isolate';
+      span.style.letterSpacing = 'normal';
+      span.style.display = 'inline';
+
+      if (match[1]) {
+        span.setAttribute('dir', 'ltr');
+        span.style.fontFamily = "'Plus Jakarta Sans', system-ui, sans-serif";
+        span.style.paddingLeft = '2px';
+        span.style.paddingRight = '2px';
+        span.textContent = match[1];
+      } else {
+        span.setAttribute('dir', 'rtl');
+        span.style.fontFamily = "'Noto Sans Arabic', system-ui, sans-serif";
+        span.textContent = match[2];
+      }
+
+      frag.appendChild(span);
+      lastIndex = tokenRe.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+      const tail = text.slice(lastIndex);
+      frag.appendChild(document.createTextNode(tail.replace(/ /g, '\u00A0')));
+    }
+
+    parent.replaceChild(frag, textNode);
+  }
 }
 
 /**
@@ -206,7 +302,6 @@ async function deliverPdfBlob(
       ) {
         await navigator.share({
           files: [pdfFile],
-          title: title || filename,
         });
         return;
       }
@@ -263,7 +358,7 @@ export async function exportElementToPDF(
   }
 
   const orientation = options.orientation || 'portrait';
-  const fixedWidthPx = orientation === 'landscape' ? 1120 : 780;
+  const fixedWidthPx = orientation === 'landscape' ? 960 : 780;
   const marginMm = 8;
 
   const pdf = new jsPDF({
@@ -306,6 +401,10 @@ export async function exportElementToPDF(
   clone
     .querySelectorAll('[data-html2canvas-ignore], [data-pdf-static-footer="true"]')
     .forEach(node => node.remove());
+
+  // Make clone layout immune to viewport media queries and mixed BiDi overlap
+  stripResponsiveClasses(clone);
+  isolateMixedBidiTextNodes(clone);
 
   // Ensure a clean company header with date exists if report lacks one
   if (!clone.querySelector('.pdf-company-header')) {
@@ -404,6 +503,9 @@ export async function exportElementToPDF(
         }
       }
     }
+
+    // Small bottom buffer so the final table border / tfoot never clips by 1-2px
+    totalContentHeight += 4;
 
     // Build page slices strictly on row boundaries
     const slices: PageSlice[] = [];
@@ -564,6 +666,26 @@ export async function exportElementToPDF(
         windowWidth: fixedWidthPx,
         scrollX: 0,
         scrollY: 0,
+        onclone: clonedDoc => {
+          const docElStyle = clonedDoc.documentElement.style as CSSStyleDeclaration & {
+            webkitTextSizeAdjust?: string;
+          };
+          docElStyle.width = `${fixedWidthPx}px`;
+          docElStyle.minWidth = `${fixedWidthPx}px`;
+          docElStyle.maxWidth = 'none';
+          docElStyle.overflow = 'visible';
+          docElStyle.webkitTextSizeAdjust = '100%';
+
+          const bodyStyle = clonedDoc.body.style as CSSStyleDeclaration & {
+            webkitTextSizeAdjust?: string;
+          };
+          bodyStyle.width = `${fixedWidthPx}px`;
+          bodyStyle.minWidth = `${fixedWidthPx}px`;
+          bodyStyle.maxWidth = 'none';
+          bodyStyle.overflow = 'visible';
+          bodyStyle.margin = '0';
+          bodyStyle.webkitTextSizeAdjust = '100%';
+        },
       });
 
       const imgData = pageCanvas.toDataURL('image/jpeg', 0.9);

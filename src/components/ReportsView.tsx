@@ -556,13 +556,13 @@ export const ReportsView: React.FC = () => {
             </div>
 
             {/* Table wrapped cleanly in overflow-x-auto */}
-            <div className="border border-slate-300 rounded-xl overflow-x-auto">
-              <table className="w-full min-w-[480px] text-right text-xs sm:text-sm border-collapse">
+            <div className="max-w-[600px] mx-auto border border-slate-300 rounded-xl overflow-x-auto">
+              <table className="w-full min-w-[420px] text-right text-xs sm:text-sm border-collapse">
                 <thead>
                   <tr className="bg-[#4a86e8] text-white font-bold border-b border-[#3b72cc]">
-                    <th className="py-2.5 px-3 sm:px-4 text-center border-l border-white/20 w-16">الرقم</th>
-                    <th className="py-2.5 px-3 sm:px-4 text-center border-l border-white/20 w-28">كود الشركة</th>
-                    <th className="py-2.5 px-3 sm:px-4 text-right border-l border-white/20">اسم الشركة</th>
+                    <th className="py-2.5 px-2.5 sm:px-3 text-center border-l border-white/20 w-14">الرقم</th>
+                    <th className="py-2.5 px-2.5 sm:px-3 text-center border-l border-white/20 w-24">كود الشركة</th>
+                    <th className="py-2.5 px-3 sm:px-4 text-right border-l border-white/20 w-56">اسم الشركة</th>
                     <th className="py-2.5 px-3 sm:px-4 text-left w-44">المديونية (SDG)</th>
                   </tr>
                 </thead>
